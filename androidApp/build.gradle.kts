@@ -21,7 +21,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.maxrave.simpmusic"
+        applicationId = "com.sakayori.music"
         minSdk = 26
         targetSdk = 36
         versionCode =

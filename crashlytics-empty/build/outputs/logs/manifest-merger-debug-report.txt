@@ -1,16 +1,16 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml:2:13-83
-INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml:2:13-83
+ADDED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml:2:13-83
+INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml:2:13-83
 	package
-		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml
+		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml
 	xmlns:android
-		ADDED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml:2:23-81
+		ADDED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml:2:23-81
 uses-sdk
-INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml reason: use-sdk injection requested
-INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml
-INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml
+INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml reason: use-sdk injection requested
+INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml
+INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml
 	android:targetSdkVersion
-		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml
+		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml
 	android:minSdkVersion
-		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest13949003113027537261.xml
+		INJECTED from C:\SimpMusic-gonna-rebuild\crashlytics-empty\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1308683669198348693.xml
