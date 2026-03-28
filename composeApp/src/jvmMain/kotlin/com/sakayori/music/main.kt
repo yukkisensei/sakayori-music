@@ -1,4 +1,4 @@
-package com.maxrave.simpmusic
+package com.sakayori.music
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,17 +24,17 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
-import com.maxrave.data.di.loader.loadAllModules
-import com.maxrave.domain.manager.DataStoreManager
-import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
-import com.maxrave.domain.mediaservice.handler.ToastType
-import com.maxrave.simpmusic.di.viewModelModule
-import com.maxrave.simpmusic.ui.component.CustomTitleBar
-import com.maxrave.simpmusic.ui.mini_player.MiniPlayerManager
-import com.maxrave.simpmusic.ui.mini_player.MiniPlayerWindow
-import com.maxrave.simpmusic.utils.VersionManager
-import com.maxrave.simpmusic.viewModel.SharedViewModel
-import com.maxrave.simpmusic.viewModel.changeLanguageNative
+import com.sakayori.data.di.loader.loadAllModules
+import com.sakayori.domain.manager.DataStoreManager
+import com.sakayori.domain.mediaservice.handler.MediaPlayerHandler
+import com.sakayori.domain.mediaservice.handler.ToastType
+import com.sakayori.music.di.viewModelModule
+import com.sakayori.music.ui.component.CustomTitleBar
+import com.sakayori.music.ui.mini_player.MiniPlayerManager
+import com.sakayori.music.ui.mini_player.MiniPlayerWindow
+import com.sakayori.music.utils.VersionManager
+import com.sakayori.music.viewModel.SharedViewModel
+import com.sakayori.music.viewModel.changeLanguageNative
 import io.sentry.Sentry
 import io.sentry.SentryLevel
 import kotlinx.coroutines.flow.first
@@ -50,15 +50,15 @@ import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
 import org.koin.java.KoinJavaComponent.inject
 import org.koin.mp.KoinPlatform.getKoin
-import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.app_name
-import simpmusic.composeapp.generated.resources.circle_app_icon
-import simpmusic.composeapp.generated.resources.close_miniplayer
-import simpmusic.composeapp.generated.resources.explicit_content_blocked
-import simpmusic.composeapp.generated.resources.open_app
-import simpmusic.composeapp.generated.resources.open_miniplayer
-import simpmusic.composeapp.generated.resources.quit_app
-import simpmusic.composeapp.generated.resources.time_out_check_internet_connection_or_change_piped_instance_in_settings
+import sakayorimusic.composeapp.generated.resources.Res
+import sakayorimusic.composeapp.generated.resources.app_name
+import sakayorimusic.composeapp.generated.resources.circle_app_icon
+import sakayorimusic.composeapp.generated.resources.close_miniplayer
+import sakayorimusic.composeapp.generated.resources.explicit_content_blocked
+import sakayorimusic.composeapp.generated.resources.open_app
+import sakayorimusic.composeapp.generated.resources.open_miniplayer
+import sakayorimusic.composeapp.generated.resources.quit_app
+import sakayorimusic.composeapp.generated.resources.time_out_check_internet_connection_or_change_piped_instance_in_settings
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun main(args: Array<String>) {
@@ -86,7 +86,7 @@ fun main(args: Array<String>) {
     // Note: macOS does NOT pass URI as args — it uses Apple Events via setOpenURIHandler
     val deepLinkArg =
         args.firstOrNull()?.takeIf { arg ->
-            arg.startsWith("simpmusic://") || arg.startsWith("http://") || arg.startsWith("https://")
+            arg.startsWith("sakayorimusic://") || arg.startsWith("http://") || arg.startsWith("https://")
         }
     if (!isMacOS) {
         deepLinkArg?.let { DesktopDeepLinkHandler.onNewUri(it) }

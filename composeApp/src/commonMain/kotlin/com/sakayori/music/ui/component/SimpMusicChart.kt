@@ -45,7 +45,7 @@ fun SimpMusicChartButton(
 
             // Text
             Text(
-                text = "Introducing SimpMusic Chart",
+                text = "Introducing SakayoriMusic Chart",
                 fontSize = 13.sp,
                 color = Color(0xFFB8B8B8),
                 fontWeight = FontWeight.Normal

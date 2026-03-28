@@ -1,4 +1,4 @@
-package com.maxrave.media3.service
+package com.sakayori.media3.service
 
 import android.app.Activity
 import android.app.ActivityManager
@@ -25,15 +25,15 @@ import androidx.media3.session.SessionToken
 import androidx.media3.ui.DefaultMediaDescriptionAdapter
 import androidx.media3.ui.PlayerNotificationManager
 import com.google.common.util.concurrent.MoreExecutors
-import com.maxrave.common.MEDIA_NOTIFICATION
-import com.maxrave.domain.manager.DataStoreManager
-import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
-import com.maxrave.domain.mediaservice.player.MediaPlayerInterface
-import com.maxrave.logger.Logger
-import com.maxrave.media3.exoplayer.CrossfadeExoPlayerAdapter
-import com.maxrave.media3.R
-import com.maxrave.media3.extension.toCommandButton
-import com.maxrave.media3.utils.CoilBitmapLoader
+import com.sakayori.common.MEDIA_NOTIFICATION
+import com.sakayori.domain.manager.DataStoreManager
+import com.sakayori.domain.mediaservice.handler.MediaPlayerHandler
+import com.sakayori.domain.mediaservice.player.MediaPlayerInterface
+import com.sakayori.logger.Logger
+import com.sakayori.media3.exoplayer.CrossfadeExoPlayerAdapter
+import com.sakayori.media3.R
+import com.sakayori.media3.extension.toCommandButton
+import com.sakayori.media3.utils.CoilBitmapLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -50,7 +50,7 @@ import kotlin.time.Duration.Companion.seconds
 internal class SimpleMediaService :
     MediaLibraryService(),
     KoinComponent {
-    private val coroutineScope by inject<CoroutineScope>(named(com.maxrave.common.Config.SERVICE_SCOPE))
+    private val coroutineScope by inject<CoroutineScope>(named(com.sakayori.common.Config.SERVICE_SCOPE))
     private val mediaPlayerAdapter: MediaPlayerInterface by inject<MediaPlayerInterface>()
     private val player: Player by lazy {
         (mediaPlayerAdapter as CrossfadeExoPlayerAdapter).forwardingPlayer
@@ -81,7 +81,7 @@ internal class SimpleMediaService :
                     context,
                     0,
                     Intent(context, activity),
-                    PendingIntent.FLAG_IMMUTABLE,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 ),
             )
         }

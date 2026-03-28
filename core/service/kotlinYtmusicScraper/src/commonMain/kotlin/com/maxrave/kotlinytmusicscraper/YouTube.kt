@@ -50,7 +50,6 @@ import com.maxrave.kotlinytmusicscraper.models.response.TidalSearchResponse
 import com.maxrave.kotlinytmusicscraper.models.response.TidalStreamResponse
 import com.maxrave.kotlinytmusicscraper.models.response.toLikeStatus
 import com.maxrave.kotlinytmusicscraper.models.response.toListAccountInfo
-import com.maxrave.kotlinytmusicscraper.models.simpmusic.FdroidResponse
 import com.maxrave.kotlinytmusicscraper.models.simpmusic.GithubResponse
 import com.maxrave.kotlinytmusicscraper.models.sponsorblock.SkipSegments
 import com.maxrave.kotlinytmusicscraper.models.youtube.GhostResponse

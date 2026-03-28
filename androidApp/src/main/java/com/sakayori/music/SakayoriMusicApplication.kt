@@ -1,4 +1,4 @@
-package com.maxrave.simpmusic
+package com.sakayori.music
 
 import android.annotation.SuppressLint
 import android.app.Application
@@ -15,11 +15,11 @@ import coil3.disk.DiskCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
-import com.maxrave.data.di.loader.loadAllModules
-import com.maxrave.domain.manager.DataStoreManager
-import com.maxrave.logger.Logger
-import com.maxrave.simpmusic.di.viewModelModule
-import com.maxrave.simpmusic.service.backup.AutoBackupScheduler
+import com.sakayori.data.di.loader.loadAllModules
+import com.sakayori.domain.manager.DataStoreManager
+import com.sakayori.logger.Logger
+import com.sakayori.music.di.viewModelModule
+import com.sakayori.music.service.backup.AutoBackupScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,7 +37,7 @@ import org.koin.core.logger.Level
 import org.simpmusic.crashlytics.configCrashlytics
 import java.lang.reflect.Field
 
-class SimpMusicApplication :
+class SakayoriMusicApplication :
     Application(),
     KoinComponent,
     SingletonImageLoader.Factory {
@@ -51,8 +51,8 @@ class SimpMusicApplication :
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         configCrashlytics(this, BuildKonfig.sentryDsn)
         startKoin {
-            androidLogger(level = Level.DEBUG)
-            androidContext(this@SimpMusicApplication)
+            androidLogger(level = Level.INFO)
+            androidContext(this@SakayoriMusicApplication)
             loadAllModules()
             loadKoinModules(viewModelModule)
         }

@@ -41,7 +41,7 @@
     </queries>
 
     <application
-        android:name=".SimpMusicApplication"
+        android:name=".SakayoriMusicApplication"
         android:allowBackup="true"
         android:appCategory="audio"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -196,7 +196,7 @@
                 android:value="true" />
         </service>
         <service
-            android:name="com.maxrave.media3.service.SimpleMediaService"
+            android:name="com.sakayori.media3.service.SimpleMediaService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback"
             android:stopWithTask="false"
@@ -209,7 +209,7 @@
             </intent-filter>
         </service>
         <service
-            android:name="com.maxrave.media3.service.download.MusicDownloadService"
+            android:name="com.sakayori.media3.service.download.MusicDownloadService"
             android:exported="true"
             android:foregroundServiceType="dataSync">
             <intent-filter>

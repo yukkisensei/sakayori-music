@@ -1,4 +1,4 @@
-package com.maxrave.simpmusic
+package com.sakayori.music
 
 import android.Manifest
 import android.content.ComponentName
@@ -24,21 +24,21 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.eygraber.uri.toKmpUriOrNull
-import com.maxrave.common.FIRST_TIME_MIGRATION
-import com.maxrave.common.SELECTED_LANGUAGE
-import com.maxrave.common.STATUS_DONE
-import com.maxrave.common.SUPPORTED_LANGUAGE
-import com.maxrave.common.SUPPORTED_LOCATION
-import com.maxrave.domain.data.model.intent.GenericIntent
-import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
-import com.maxrave.domain.mediaservice.handler.ToastType
-import com.maxrave.logger.Logger
-import com.maxrave.media3.di.setServiceActivitySession
-import com.maxrave.simpmusic.di.viewModelModule
-import com.maxrave.simpmusic.service.test.notification.NotifyWork
-import com.maxrave.simpmusic.utils.ComposeResUtils
-import com.maxrave.simpmusic.utils.VersionManager
-import com.maxrave.simpmusic.viewModel.SharedViewModel
+import com.sakayori.common.FIRST_TIME_MIGRATION
+import com.sakayori.common.SELECTED_LANGUAGE
+import com.sakayori.common.STATUS_DONE
+import com.sakayori.common.SUPPORTED_LANGUAGE
+import com.sakayori.common.SUPPORTED_LOCATION
+import com.sakayori.domain.data.model.intent.GenericIntent
+import com.sakayori.domain.mediaservice.handler.MediaPlayerHandler
+import com.sakayori.domain.mediaservice.handler.ToastType
+import com.sakayori.logger.Logger
+import com.sakayori.media3.di.setServiceActivitySession
+import com.sakayori.music.di.viewModelModule
+import com.sakayori.music.service.test.notification.NotifyWork
+import com.sakayori.music.utils.ComposeResUtils
+import com.sakayori.music.utils.VersionManager
+import com.sakayori.music.viewModel.SharedViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -108,15 +108,10 @@ class MainActivity : AppCompatActivity() {
                 single<AppCompatActivity> { this@MainActivity }
             },
         )
-        // Recreate view model to fix the issue of view model not getting data from the service
-        unloadKoinModules(viewModelModule)
-        loadKoinModules(viewModelModule)
         VersionManager.initialize()
         checkForUpdate()
-        if (viewModel.recreateActivity.value || viewModel.isServiceRunning) {
+        if (viewModel.recreateActivity.value) {
             viewModel.activityRecreateDone()
-        } else {
-            startMusicService()
         }
         Logger.d("MainActivity", "onCreate: ")
         val data = (intent?.data ?: intent?.getStringExtra(Intent.EXTRA_TEXT)?.toUri())?.toKmpUriOrNull()
@@ -208,16 +203,14 @@ class MainActivity : AppCompatActivity() {
 
         if (!EasyPermissions.hasPermissions(this, Manifest.permission.POST_NOTIFICATIONS)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                    val msg = runBlocking { ComposeResUtils.getResString(ComposeResUtils.StringType.NOTIFICATION_REQUEST) }
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        EasyPermissions.requestPermissions(
-                            this@MainActivity,
-                            msg,
-                            1,
-                            Manifest.permission.POST_NOTIFICATIONS,
-                        )
-                    }
+                androidx.lifecycle.lifecycleScope.launch {
+                    val msg = ComposeResUtils.getResString(ComposeResUtils.StringType.NOTIFICATION_REQUEST)
+                    EasyPermissions.requestPermissions(
+                        this@MainActivity,
+                        msg,
+                        1,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    )
                 }
             }
         }
@@ -256,17 +249,18 @@ class MainActivity : AppCompatActivity() {
             pushPlayerError(it)
         }
         mediaPlayerHandler.showToast = { type ->
-            viewModel.makeToast(
-                when (type) {
+            androidx.lifecycle.lifecycleScope.launch {
+                val message = when (type) {
                     is ToastType.ExplicitContent -> {
-                        runBlocking { ComposeResUtils.getResString(ComposeResUtils.StringType.EXPLICIT_CONTENT_BLOCKED) }
+                        ComposeResUtils.getResString(ComposeResUtils.StringType.EXPLICIT_CONTENT_BLOCKED)
                     }
 
                     is ToastType.PlayerError -> {
-                        runBlocking { ComposeResUtils.getResString(ComposeResUtils.StringType.TIME_OUT_ERROR, type.error) }
+                        ComposeResUtils.getResString(ComposeResUtils.StringType.TIME_OUT_ERROR, type.error)
                     }
-                },
-            )
+                }
+                viewModel.makeToast(message)
+            }
         }
         viewModel.isServiceRunning = true
         shouldUnbind = true

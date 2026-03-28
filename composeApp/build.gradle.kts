@@ -41,7 +41,7 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
     android {
-        namespace = "com.maxrave.simpmusic.composeapp"
+        namespace = "com.sakayori.music.composeapp"
         compileSdk = 36
         minSdk = 26
         withJava()
@@ -184,12 +184,12 @@ vlcSetup {
 
 compose.resources {
     publicResClass = true
-    packageOfResClass = "simpmusic.composeapp.generated.resources"
+    packageOfResClass = "sakayorimusic.composeapp.generated.resources"
 }
 
 compose.desktop {
     application {
-        mainClass = "com.maxrave.simpmusic.MainKt"
+        mainClass = "com.sakayori.music.MainKt"
         jvmArgs += "--add-opens=java.base/java.nio=ALL-UNNAMED"
 
         nativeDistributions {
@@ -197,15 +197,9 @@ compose.desktop {
             val listTarget = mutableListOf<TargetFormat>()
             if (org.gradle.internal.os.OperatingSystem
                     .current()
-                    .isMacOsX
+                    .isWindows
             ) {
-                listTarget.addAll(
-                    listOf(TargetFormat.Dmg, TargetFormat.Msi),
-                )
-            } else {
-                listTarget.addAll(
-                    listOf(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.AppImage),
-                )
+                listTarget.add(TargetFormat.Exe)
             }
             targetFormats(*listTarget.toTypedArray())
             modules("jdk.unsupported")
@@ -276,7 +270,7 @@ compose.desktop {
 }
 
 buildkonfig {
-    packageName = "com.maxrave.simpmusic"
+    packageName = "com.sakayori.music"
     exposeObjectWithName = "BuildKonfig"
     defaultConfigs {
         val versionName =
