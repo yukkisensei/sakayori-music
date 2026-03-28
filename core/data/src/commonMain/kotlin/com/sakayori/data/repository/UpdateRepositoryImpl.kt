@@ -1,9 +1,9 @@
-package com.maxrave.data.repository
+package com.sakayori.data.repository
 
-import com.maxrave.domain.data.model.update.UpdateData
-import com.maxrave.domain.repository.UpdateRepository
-import com.maxrave.domain.utils.Resource
-import com.maxrave.kotlinytmusicscraper.YouTube
+import com.sakayori.domain.data.model.update.UpdateData
+import com.sakayori.domain.repository.UpdateRepository
+import com.sakayori.domain.utils.Resource
+import com.sakayori.kotlinytmusicscraper.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

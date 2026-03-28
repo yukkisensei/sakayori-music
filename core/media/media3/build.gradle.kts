@@ -12,7 +12,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.maxrave.media3"
+    namespace = "com.sakayori.media3"
     compileSdk = 36
 
     defaultConfig {

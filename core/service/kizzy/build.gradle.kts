@@ -9,7 +9,7 @@ plugins {
 
 kotlin {
     androidLibrary {
-        namespace = "com.my.kizzy"
+        namespace = "com.sakayori.service.kizzy"
         compileSdk = 36
         minSdk = 26
     }
