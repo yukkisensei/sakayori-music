@@ -2025,12 +2025,7 @@ fun SettingScreen(
                 )
                 SettingItem(
                     title = stringResource(Res.string.update_channel),
-                    subtitle =
-                        if (updateChannel == DataStoreManager.FDROID) {
-                            "F-Droid"
-                        } else {
-                            "SakayoriMusic GitHub Release"
-                        },
+                    subtitle = "SakayoriMusic GitHub Release",
                     onClick = {
                         viewModel.setAlertData(
                             SettingAlertState(
@@ -2039,18 +2034,13 @@ fun SettingScreen(
                                     SettingAlertState.SelectData(
                                         listSelect =
                                             listOf(
-                                                (updateChannel == DataStoreManager.FDROID) to "F-Droid",
                                                 (updateChannel == DataStoreManager.GITHUB) to "SakayoriMusic GitHub Release",
                                             ),
                                     ),
                                 confirm =
                                     runBlocking { getString(Res.string.change) } to { state ->
                                         viewModel.setUpdateChannel(
-                                            when (state.selectOne?.getSelected()) {
-                                                "F-Droid" -> DataStoreManager.FDROID
-                                                "SakayoriMusic GitHub Release" -> DataStoreManager.GITHUB
-                                                else -> DataStoreManager.GITHUB
-                                            },
+                                            DataStoreManager.GITHUB
                                         )
                                     },
                                 dismiss = runBlocking { getString(Res.string.cancel) },

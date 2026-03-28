@@ -31,27 +31,5 @@ internal class UpdateRepositoryImpl(
                 }
         }.flowOn(Dispatchers.IO)
 
-    override fun checkForFdroidUpdate(): Flow<Resource<UpdateData>> =
-        flow {
-            youTube
-                .checkForFdroidUpdate()
-                .onSuccess { response ->
-                    val latestVersion = response.packages.maxBy { it.versionCode }
-                    emit(
-                        Resource.Success(
-                            UpdateData(
-                                tagName = latestVersion.versionName,
-                                releaseTime = null,
-                                body =
-                                    """
-                                    ### Update via F-Droid, changelogs: 
-                                    - https://github.com/yukkisensei/sakayori-music/blob/main/fastlane/metadata/android/en-US/changelogs/${latestVersion.versionCode}.txt
-                                    """.trimIndent(),
-                            ),
-                        ),
-                    )
-                }.onFailure {
-                    emit(Resource.Error<UpdateData>(it.localizedMessage ?: "Unknown error"))
-                }
         }.flowOn(Dispatchers.IO)
 }

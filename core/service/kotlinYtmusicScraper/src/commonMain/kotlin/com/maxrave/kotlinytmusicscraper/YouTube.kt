@@ -850,11 +850,6 @@ class YouTube {
             ytMusic.checkForGithubReleaseUpdate().body<GithubResponse>()
         }
 
-    suspend fun checkForFdroidUpdate(): Result<FdroidResponse> =
-        runCatching {
-            ytMusic.checkForFdroidUpdate().body<FdroidResponse>()
-        }
-
     suspend fun newRelease(): Result<ExplorePage> =
         runCatching {
             val response =
