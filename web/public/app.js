@@ -182,26 +182,44 @@ const I18N = {
   },
 
   apply(root = document) {
-    // Text content via data-i18n="key"
+    // Text content via data-i18n="key".
+    //
+    // Rules:
+    //   • If the element has zero element-children, replace its textContent.
+    //   • Otherwise prefer to update the first <span> (or any text-bearing
+    //     element) inside it — that's the icon-then-label convention used
+    //     across nav items, fp-action buttons, etc.
+    //   • Otherwise update the last non-empty text node we already own.
+    //   • Never invent a new text node when child elements already exist —
+    //     that's what was producing duplicates like "Home Home" / "Liked Liked".
     $$("[data-i18n]", root).forEach((el) => {
       const key = el.getAttribute("data-i18n");
-      const val = this.t(key, el.textContent.trim() || key);
-      // Only replace bare-text nodes; preserve nested icons/badges.
-      const onlyText = el.children.length === 0;
-      if (onlyText) el.textContent = val;
-      else {
-        // Update only the *last* text node child (icon-then-label pattern)
-        for (const node of el.childNodes) {
-          if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-            node.textContent = val;
-          }
-        }
-        // If no text node existed, append one.
-        if (![...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim())) {
-          el.appendChild(document.createTextNode(val));
+
+      if (el.children.length === 0) {
+        const fb = el.textContent.trim() || key;
+        el.textContent = this.t(key, fb);
+        return;
+      }
+
+      // Find a labelling child element — span > div > p in priority order.
+      let labelEl = el.querySelector(":scope > span")
+        || el.querySelector(":scope > div")
+        || el.querySelector(":scope > p");
+      if (labelEl) {
+        const fb = labelEl.textContent.trim() || key;
+        labelEl.textContent = this.t(key, fb);
+        return;
+      }
+
+      // Fall back to updating an existing text node (without inventing one).
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          node.textContent = this.t(key, node.textContent.trim());
+          return;
         }
       }
     });
+
     // Fallback-text variant (still pull from English even when not key)
     $$("[data-i18n-fb]", root).forEach((el) => {
       const key = el.getAttribute("data-i18n-fb");
