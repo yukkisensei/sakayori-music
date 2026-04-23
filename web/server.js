@@ -12,7 +12,7 @@ const compression = require("compression");
 const { LRUCache } = require("lru-cache");
 const { Agent, fetch: undiciFetch } = require("undici");
 
-const HOST = process.env.HOST || "127.0.0.1";
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 let YT_DLP = process.env.YT_DLP || "yt-dlp";
 
