@@ -1,24 +1,3 @@
-/* =============================================================================
-   SakayoriMusic — Web · SPA controller
-   ─────────────────────────────────────────────────────────────────────────────
-   Modules in this single file (no bundler required):
-     • i18n       → loads /locales/<bcp47>.json from server (mirrors Android),
-                    persists choice to localStorage, applies to every node
-                    tagged with `data-i18n` / `data-i18n-attr` / `data-i18n-fb`.
-     • Offline    → IndexedDB-backed download manager.  Audio bytes are pulled
-                    from /api/stream via Range requests (chunked progress) and
-                    persisted as Blob.  Playback transparently switches to
-                    blob:// URL when an offline copy exists.
-     • Lyrics     → fetches /api/lyrics?source=… for the multi-provider chain.
-                    Source picker hydrates from /api/lyrics/sources.
-     • UI         → SVG icon helper (`icon(name)`), Liquid-glass templates.
-                    Zero emoji anywhere — every glyph is `<svg><use href="#ic-..."/>`.
-   ========================================================================== */
-
-
-// =====================================================================
-// 0. Generic helpers
-// =====================================================================
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
@@ -30,26 +9,19 @@ const fmt = (s) => {
   return `${m}:${sec}`;
 };
 const escapeHtml = (s) =>
-  String(s ?? "").replace(/[&<>"]/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
-  })[c]);
+String(s ?? "").replace(/[&<>"]/g, (c) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"
+})[c]);
 const artistsText = (a) =>
-  Array.isArray(a) ? a.map((x) => x.name).filter(Boolean).join(", ") : "";
+Array.isArray(a) ? a.map((x) => x.name).filter(Boolean).join(", ") : "";
 const fmtBytes = (n) => {
   if (!Number.isFinite(n) || n <= 0) return "0 B";
   const u = ["B", "KB", "MB", "GB"];
   let i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  while (n >= 1024 && i < u.length - 1) {n /= 1024;i++;}
   return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
 };
 
-// SVG icon helper.  All UI glyphs go through here — never emoji.
-//
-// We bake `viewBox` + explicit `width`/`height` into every emitted <svg> so
-// browsers don't fall back to the 300x150 SVG default while waiting for CSS
-// to apply (which produces giant icons during paint, especially when the
-// .ic class isn't yet matched — e.g. icons rendered into newly-created
-// elements before stylesheets are computed).
 function icon(name, cls = "ic") {
   const sz = cls.includes("ic-sm") ? 16 : cls.includes("ic-lg") ? 28 : cls.includes("ic-xl") ? 40 : 20;
   return `<svg class="${cls}" viewBox="0 0 24 24" width="${sz}" height="${sz}" aria-hidden="true"><use href="#ic-${name}"/></svg>`;
@@ -59,10 +31,6 @@ function setBtnIcon(el, name, cls = "ic") {
   el.innerHTML = icon(name, cls);
 }
 
-
-// =====================================================================
-// 1. State
-// =====================================================================
 const State = {
   queue: [],
   queueIndex: -1,
@@ -78,7 +46,7 @@ const State = {
   sleepTimerId: null,
   mode: "audio",
   settings: JSON.parse(localStorage.getItem("settings") || "{}"),
-  forwardStack: [],
+  forwardStack: []
 };
 
 const DEFAULTS = {
@@ -89,7 +57,7 @@ const DEFAULTS = {
   autoLyrics: true,
   sleepMin: 0,
   lyricsSource: "auto",
-  locale: null,             // null → autodetect from browser
+  locale: null
 };
 for (const k in DEFAULTS) {
   if (!(k in State.settings)) State.settings[k] = DEFAULTS[k];
@@ -109,9 +77,6 @@ function persistRecents() {
   localStorage.setItem("recents", JSON.stringify(State.recents));
 }
 
-// =====================================================================
-// 2. i18n  (Android strings.xml → JSON, served as /locales/*.json)
-// =====================================================================
 const I18N = {
   code: "en",
   fallback: "en",
@@ -133,22 +98,22 @@ const I18N = {
         this.available = j.locales || [];
         this.fallback = j.default || "en";
       }
-    } catch { /* offline → leave empty */ }
+    } catch {}
   },
 
   pickInitialLocale() {
-    // Order: saved setting → browser pref → fallback (en)
+
     const saved = State.settings.locale;
     if (saved && this.available.some((l) => l.code === saved)) return saved;
 
-    const candidates = (navigator.languages || [navigator.language || "en"])
-      .filter(Boolean);
+    const candidates = (navigator.languages || [navigator.language || "en"]).
+    filter(Boolean);
     for (const c of candidates) {
-      // exact match (e.g. "zh-TW")
+
       if (this.available.some((l) => l.code.toLowerCase() === c.toLowerCase())) {
         return this.available.find((l) => l.code.toLowerCase() === c.toLowerCase()).code;
       }
-      // language-only match (e.g. "zh-CN" → "zh")
+
       const lang = c.split("-")[0].toLowerCase();
       const hit = this.available.find((l) => l.code.toLowerCase() === lang);
       if (hit) return hit.code;
@@ -157,12 +122,12 @@ const I18N = {
   },
 
   async load(code) {
-    // Always load fallback (en) once so missing keys still resolve.
+
     if (!Object.keys(this.fallbackMap).length) {
       try {
         const r = await fetch(`/locales/${this.fallback}.json`);
         if (r.ok) this.fallbackMap = (await r.json()).strings || {};
-      } catch { /* noop */ }
+      } catch {}
     }
     try {
       const r = await fetch(`/locales/${code}.json`);
@@ -182,16 +147,7 @@ const I18N = {
   },
 
   apply(root = document) {
-    // Text content via data-i18n="key".
-    //
-    // Rules:
-    //   • If the element has zero element-children, replace its textContent.
-    //   • Otherwise prefer to update the first <span> (or any text-bearing
-    //     element) inside it — that's the icon-then-label convention used
-    //     across nav items, fp-action buttons, etc.
-    //   • Otherwise update the last non-empty text node we already own.
-    //   • Never invent a new text node when child elements already exist —
-    //     that's what was producing duplicates like "Home Home" / "Liked Liked".
+
     $$("[data-i18n]", root).forEach((el) => {
       const key = el.getAttribute("data-i18n");
 
@@ -201,17 +157,15 @@ const I18N = {
         return;
       }
 
-      // Find a labelling child element — span > div > p in priority order.
-      let labelEl = el.querySelector(":scope > span")
-        || el.querySelector(":scope > div")
-        || el.querySelector(":scope > p");
+      let labelEl = el.querySelector(":scope > span") ||
+      el.querySelector(":scope > div") ||
+      el.querySelector(":scope > p");
       if (labelEl) {
         const fb = labelEl.textContent.trim() || key;
         labelEl.textContent = this.t(key, fb);
         return;
       }
 
-      // Fall back to updating an existing text node (without inventing one).
       for (const node of el.childNodes) {
         if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
           node.textContent = this.t(key, node.textContent.trim());
@@ -220,12 +174,11 @@ const I18N = {
       }
     });
 
-    // Fallback-text variant (still pull from English even when not key)
     $$("[data-i18n-fb]", root).forEach((el) => {
       const key = el.getAttribute("data-i18n-fb");
       el.textContent = this.t(key, el.textContent.trim());
     });
-    // Attribute translations: data-i18n-attr="placeholder|search_for_..."
+
     $$("[data-i18n-attr]", root).forEach((el) => {
       const spec = el.getAttribute("data-i18n-attr");
       for (const pair of spec.split(",")) {
@@ -240,24 +193,20 @@ const I18N = {
     saveSettings();
     await this.load(code);
     this.apply();
-    // Re-render whatever route is active so dynamic strings re-translate.
-    try { router(false); } catch { /* noop */ }
-  },
+
+    try {router(false);} catch {}
+  }
 };
 
-// Tiny shorthand
 const T = (k, fb) => I18N.t(k, fb);
 
-// =====================================================================
-// 3. Offline download manager (IndexedDB)
-// =====================================================================
 const Offline = {
   DB: null,
   DB_NAME: "sakayori-offline",
   DB_VER: 1,
   STORE: "tracks",
   listeners: new Set(),
-  activeDownloads: new Map(),  // videoId -> AbortController
+  activeDownloads: new Map(),
 
   async init() {
     if (!("indexedDB" in window)) {
@@ -281,7 +230,7 @@ const Offline = {
       return null;
     });
     if (this.DB) {
-      // Mark anything that was mid-download when the page closed as paused.
+
       const all = await this.list();
       for (const t of all) {
         if (t.status === "downloading") await this.put({ ...t, status: "paused" });
@@ -290,9 +239,9 @@ const Offline = {
     }
   },
 
-  on(fn) { this.listeners.add(fn); },
-  off(fn) { this.listeners.delete(fn); },
-  notify() { for (const fn of this.listeners) try { fn(); } catch { } },
+  on(fn) {this.listeners.add(fn);},
+  off(fn) {this.listeners.delete(fn);},
+  notify() {for (const fn of this.listeners) try {fn();} catch {}},
 
   txStore(mode = "readonly") {
     if (!this.DB) return null;
@@ -324,20 +273,20 @@ const Offline = {
     if (!os) return Promise.resolve();
     return new Promise((resolve) => {
       const r = os.put(rec);
-      r.onsuccess = () => { this.notify(); resolve(); };
+      r.onsuccess = () => {this.notify();resolve();};
       r.onerror = () => resolve();
     });
   },
 
   remove(videoId) {
-    // Cancel inflight download too if any.
+
     const ac = this.activeDownloads.get(videoId);
-    if (ac) { try { ac.abort(); } catch { } this.activeDownloads.delete(videoId); }
+    if (ac) {try {ac.abort();} catch {}this.activeDownloads.delete(videoId);}
     const os = this.txStore("readwrite");
     if (!os) return Promise.resolve();
     return new Promise((resolve) => {
       const r = os.delete(videoId);
-      r.onsuccess = () => { this.notify(); resolve(); };
+      r.onsuccess = () => {this.notify();resolve();};
       r.onerror = () => resolve();
     });
   },
@@ -352,11 +301,6 @@ const Offline = {
     return URL.createObjectURL(rec.blob);
   },
 
-  /**
-   * Start (or resume) a download for `song`.  Streams `/api/stream/:videoId`
-   * in chunks via the Fetch reader, accumulates bytes, persists the final
-   * Blob to IndexedDB.  Live progress is broadcast via this.notify().
-   */
   async download(song) {
     if (!this.DB) {
       showToast(T("error", "Error") + ": IndexedDB unavailable");
@@ -384,7 +328,7 @@ const Offline = {
       received: 0,
       total: existing?.total || 0,
       addedAt: existing?.addedAt || Date.now(),
-      error: null,
+      error: null
     });
 
     try {
@@ -405,7 +349,6 @@ const Offline = {
         chunks.push(value);
         received += value.length;
 
-        // Throttle DB updates to ~10 Hz so we don't thrash IndexedDB.
         const now = performance.now();
         if (now - lastTick > 100) {
           lastTick = now;
@@ -416,7 +359,7 @@ const Offline = {
             received,
             total,
             addedAt: existing?.addedAt || Date.now(),
-            error: null,
+            error: null
           });
         }
       }
@@ -432,21 +375,21 @@ const Offline = {
         mime,
         addedAt: existing?.addedAt || Date.now(),
         completedAt: Date.now(),
-        error: null,
+        error: null
       });
       showToast(`${T("downloaded", "Downloaded")}: ${song.name || videoId}`);
     } catch (e) {
       if (e.name === "AbortError") {
         await this.put({
-          ...(await this.get(videoId)) || { videoId, song },
-          status: "paused",
+          ...((await this.get(videoId)) || { videoId, song }),
+          status: "paused"
         });
       } else {
         console.warn("[offline] download failed:", e);
         await this.put({
-          ...(await this.get(videoId)) || { videoId, song },
+          ...((await this.get(videoId)) || { videoId, song }),
           status: "error",
-          error: e.message || String(e),
+          error: e.message || String(e)
         });
         showToast(`${T("error", "Error")}: ${e.message || e}`);
       }
@@ -458,14 +401,11 @@ const Offline = {
 
   async cancel(videoId) {
     const ac = this.activeDownloads.get(videoId);
-    if (ac) { try { ac.abort(); } catch { } this.activeDownloads.delete(videoId); }
+    if (ac) {try {ac.abort();} catch {}this.activeDownloads.delete(videoId);}
     await this.remove(videoId);
-  },
+  }
 };
 
-// =====================================================================
-// 4. DOM handles
-// =====================================================================
 const audio = $("#audio");
 const video = $("#video");
 const view = $("#view");
@@ -538,9 +478,6 @@ const fwdBtn = $("#fwdBtn");
 const langBtn = $("#langBtn");
 const langMenu = $("#langMenu");
 
-// =====================================================================
-// 5. Misc utilities
-// =====================================================================
 function showToast(msg) {
   toast.textContent = msg;
   toast.classList.remove("hidden");
@@ -560,12 +497,12 @@ function extractAccentFromImage(url) {
         const ctx = c.getContext("2d");
         ctx.drawImage(img, 0, 0, 8, 8);
         const px = ctx.getImageData(0, 0, 8, 8).data;
-        let r = 0, g = 0, b = 0, n = 0;
+        let r = 0,g = 0,b = 0,n = 0;
         for (let i = 0; i < px.length; i += 4) {
-          r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+          r += px[i];g += px[i + 1];b += px[i + 2];n++;
         }
         resolve(`rgb(${r / n | 0}, ${g / n | 0}, ${b / n | 0})`);
-      } catch { resolve(null); }
+      } catch {resolve(null);}
     };
     img.onerror = () => resolve(null);
     img.src = url;
@@ -575,19 +512,16 @@ function extractAccentFromImage(url) {
 const api = {
   home: () => fetch("/api/home").then((r) => r.json()),
   search: (q, type = "songs") =>
-    fetch(`/api/search?q=${encodeURIComponent(q)}&type=${type}`).then((r) => r.json()),
+  fetch(`/api/search?q=${encodeURIComponent(q)}&type=${type}`).then((r) => r.json()),
   suggest: (q) => fetch(`/api/suggest?q=${encodeURIComponent(q)}`).then((r) => r.json()),
   upNext: (videoId) => fetch(`/api/up-next/${videoId}`).then((r) => r.json()),
   artist: (id) => fetch(`/api/artist/${id}`).then((r) => r.json()),
   album: (id) => fetch(`/api/album/${id}`).then((r) => r.json()),
   playlist: (id) => fetch(`/api/playlist/${id}`).then((r) => r.json()),
   lyrics: (q) => fetch(`/api/lyrics?${new URLSearchParams(q)}`).then((r) => r.json()),
-  lyricsSources: () => fetch(`/api/lyrics/sources`).then((r) => r.json()),
+  lyricsSources: () => fetch(`/api/lyrics/sources`).then((r) => r.json())
 };
 
-// =====================================================================
-// 6. Web Audio graph (EQ + visualizer)
-// =====================================================================
 let audioCtx = null;
 let audioSrcNode = null;
 let videoSrcNode = null;
@@ -597,9 +531,9 @@ function ensureAudioGraph() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  eqLow = audioCtx.createBiquadFilter(); eqLow.type = "lowshelf"; eqLow.frequency.value = 320;
-  eqMid = audioCtx.createBiquadFilter(); eqMid.type = "peaking"; eqMid.frequency.value = 1000; eqMid.Q.value = 1;
-  eqHigh = audioCtx.createBiquadFilter(); eqHigh.type = "highshelf"; eqHigh.frequency.value = 3200;
+  eqLow = audioCtx.createBiquadFilter();eqLow.type = "lowshelf";eqLow.frequency.value = 320;
+  eqMid = audioCtx.createBiquadFilter();eqMid.type = "peaking";eqMid.frequency.value = 1000;eqMid.Q.value = 1;
+  eqHigh = audioCtx.createBiquadFilter();eqHigh.type = "highshelf";eqHigh.frequency.value = 3200;
 
   masterGain = audioCtx.createGain();
   analyser = audioCtx.createAnalyser();
@@ -626,9 +560,6 @@ function applyEqFromSettings() {
   eqHigh.gain.value = hi;
 }
 
-// =====================================================================
-// 7. Routing
-// =====================================================================
 window.addEventListener("hashchange", () => router(false));
 function navigate(path, push = true) {
   if (push && location.hash !== `#${path}`) {
@@ -648,19 +579,19 @@ async function router(_initial = true) {
 
   try {
     switch (route) {
-      case "home": case "": return renderHome();
-      case "search": return renderSearch(decodeURIComponent(rest.join("/")));
-      case "library": return renderLibrary();
-      case "recent": return renderRecents();
-      case "playlists": return renderLocalPlaylists();
-      case "playlist": return renderLocalPlaylist(rest.join("/"));
-      case "ytplaylist": return renderRemotePlaylist(rest.join("/"));
-      case "album": return renderAlbum(rest.join("/"));
-      case "artist": return renderArtist(rest.join("/"));
-      case "downloads": return renderDownloads();
-      case "settings": return renderSettings();
-      case "shortcuts": return renderShortcuts();
-      default: return renderHome();
+      case "home":case "":return renderHome();
+      case "search":return renderSearch(decodeURIComponent(rest.join("/")));
+      case "library":return renderLibrary();
+      case "recent":return renderRecents();
+      case "playlists":return renderLocalPlaylists();
+      case "playlist":return renderLocalPlaylist(rest.join("/"));
+      case "ytplaylist":return renderRemotePlaylist(rest.join("/"));
+      case "album":return renderAlbum(rest.join("/"));
+      case "artist":return renderArtist(rest.join("/"));
+      case "downloads":return renderDownloads();
+      case "settings":return renderSettings();
+      case "shortcuts":return renderShortcuts();
+      default:return renderHome();
     }
   } catch (e) {
     view.innerHTML = `<div class="empty">${T("error", "Error")}: ${escapeHtml(e.message)}</div>`;
@@ -676,15 +607,12 @@ function setActiveSidebar(path) {
 
 function skeletonRow(n = 8) {
   return Array.from({ length: n }, () =>
-    `<div class="card"><div class="skeleton skel-card"></div>
+  `<div class="card"><div class="skeleton skel-card"></div>
             <div class="t skeleton" style="height:14px;margin-top:10px"></div>
             <div class="a skeleton" style="height:11px;margin-top:6px"></div></div>`
   ).join("");
 }
 
-// =====================================================================
-// 8. Render: Home
-// =====================================================================
 async function renderHome() {
   view.innerHTML = `
         <h1 class="section-title">${T("good_evening", "Welcome back")}</h1>
@@ -698,9 +626,9 @@ async function renderHome() {
   const { shelves } = await api.home();
   const map = new Map();
   shelves.forEach((sh) => sh.items.forEach((it) => map.set(it.videoId, it)));
-  $("#shelves").innerHTML = shelves
-    .filter((s) => s.items?.length)
-    .map((shelf) => `
+  $("#shelves").innerHTML = shelves.
+  filter((s) => s.items?.length).
+  map((shelf) => `
             <section class="shelf">
                 <div class="shelf-head"><h2>${escapeHtml(shelf.title)}</h2></div>
                 <div class="shelf-row">
@@ -728,7 +656,7 @@ function wireCards(metaMap) {
     el.addEventListener("click", (e) => {
       if (e.target === playBtn || e.target.closest(".card-play")) return;
       const shelf = el.closest(".shelf, .grid");
-      if (!shelf) { playQueue([meta], 0); return; }
+      if (!shelf) {playQueue([meta], 0);return;}
       const cards = $$(".card[data-vid]", shelf);
       const queue = cards.map((c) => metaMap.get(c.dataset.vid) || { videoId: c.dataset.vid });
       playQueue(queue, queue.findIndex((s) => s.videoId === vid));
@@ -744,14 +672,11 @@ function wireCards(metaMap) {
   });
 }
 
-// =====================================================================
-// 9. Render: Search / list rows
-// =====================================================================
 async function renderSearch(q) {
   if (!q) {
     view.innerHTML = `<h1 class="section-title">${T("search", "Search")}</h1>
             <div class="empty">${T("search_for_songs_artists_albums_playlists_and_more",
-      "Type something in the search bar above.")}</div>`;
+    "Type something in the search bar above.")}</div>`;
     return;
   }
   searchInput.value = q;
@@ -766,7 +691,7 @@ async function renderSearch(q) {
 
   const type = searchTypeSel.value;
   const { results } = await api.search(q, type);
-  if (!results.length) { view.innerHTML = `<div class="empty">${T("error", "No results.")}</div>`; return; }
+  if (!results.length) {view.innerHTML = `<div class="empty">${T("error", "No results.")}</div>`;return;}
   const songish = results.filter((r) => r.videoId);
   const cardish = results.filter((r) => !r.videoId);
 
@@ -806,9 +731,9 @@ function songRow(s, idx, queue, opts = {}) {
     div.dataset.idx = idx;
   }
   if (
-    State.queueIndex >= 0 &&
-    State.queue[State.queueIndex]?.videoId === s.videoId
-  ) {
+  State.queueIndex >= 0 &&
+  State.queue[State.queueIndex]?.videoId === s.videoId)
+  {
     div.classList.add("playing");
   }
   div.innerHTML = `
@@ -824,7 +749,6 @@ function songRow(s, idx, queue, opts = {}) {
             <button class="icon-btn" title="${T("more", "More")}" data-action="more">${icon("more", "ic-sm")}</button>
         </div>`;
 
-  // Reflect offline status with a small icon overlay
   Offline.get(s.videoId).then((rec) => {
     if (!rec) return;
     const dur = div.querySelector(".dur");
@@ -838,7 +762,7 @@ function songRow(s, idx, queue, opts = {}) {
 
   div.addEventListener("click", (e) => {
     if (e.target.closest("button")) return;
-    if (opts.onPlay) opts.onPlay(idx); else playQueue(queue, idx);
+    if (opts.onPlay) opts.onPlay(idx);else playQueue(queue, idx);
   });
   div.querySelector('[data-action="more"]').addEventListener("click", (e) => {
     e.stopPropagation();
@@ -854,9 +778,6 @@ function songRow(s, idx, queue, opts = {}) {
   return div;
 }
 
-// =====================================================================
-// 10. Hero / Album / Artist / Remote playlist
-// =====================================================================
 function renderHero({ kind, name, subtitle, image, songs, isArtist }) {
   return `
         <div class="hero">
@@ -883,7 +804,7 @@ async function renderAlbum(id) {
     name: a.name,
     subtitle: `${a.artist} · ${a.songs.length} ${T("songs", "tracks")}`,
     image: a.thumbnail?.url,
-    songs: a.songs,
+    songs: a.songs
   }) + `<div class="list" id="songList"></div>`;
   const list = $("#songList");
   a.songs.forEach((s, i) => list.appendChild(songRow(s, i, a.songs)));
@@ -898,7 +819,7 @@ async function renderRemotePlaylist(id) {
     name: p.name,
     subtitle: `${p.songs.length} ${T("songs", "tracks")}`,
     image: p.thumbnail?.url,
-    songs: p.songs,
+    songs: p.songs
   }) + `<div class="list" id="songList"></div>`;
   const list = $("#songList");
   p.songs.forEach((s, i) => list.appendChild(songRow(s, i, p.songs)));
@@ -914,7 +835,7 @@ async function renderArtist(id) {
     subtitle: a.subscribers ? T("subscribers", `${a.subscribers} subscribers`).replace("%1$s", a.subscribers) : "",
     image: a.thumbnail?.url,
     songs: a.topSongs,
-    isArtist: true,
+    isArtist: true
   });
 
   if (a.topSongs?.length) {
@@ -946,14 +867,14 @@ async function renderArtist(id) {
     a.topSongs.forEach((s, i) => list.appendChild(songRow(s, i, a.topSongs)));
   }
   $$(".card[data-album-id]").forEach((c) =>
-    c.addEventListener("click", () => navigate(`/album/${c.dataset.albumId}`)));
+  c.addEventListener("click", () => navigate(`/album/${c.dataset.albumId}`)));
   wireHero(a.topSongs || []);
 }
 
 function wireHero(songs) {
   $("#heroPlay")?.addEventListener("click", () => playQueue(songs, 0));
   $("#heroShuffle")?.addEventListener("click", () => {
-    State.shuffle = true; updateShuffleUi();
+    State.shuffle = true;updateShuffleUi();
     playQueue([...songs].sort(() => Math.random() - 0.5), 0);
   });
   $("#heroAddQueue")?.addEventListener("click", () => {
@@ -963,9 +884,6 @@ function wireHero(songs) {
   });
 }
 
-// =====================================================================
-// 11. Library / Recents / Local playlists
-// =====================================================================
 function renderLibrary() {
   const items = [...State.liked].map(
     (vid) => State.likedMeta[vid] || { videoId: vid, name: vid, artists: [] }
@@ -1007,19 +925,19 @@ function renderRecents() {
 function renderLocalPlaylists() {
   const ids = Object.keys(State.playlists);
   view.innerHTML = `<h1 class="section-title">${T("your_playlists", "My Playlists")}</h1>
-        ${ids.length === 0
-      ? `<div class="empty">${T("no_playlists_added", "No playlists yet. Click \"+ New playlist\" in the sidebar.")}</div>`
-      : `<div class="grid">${ids.map((id) => {
-        const p = State.playlists[id];
-        const cover = p.songs[0]?.thumbnail?.url || "";
-        return `<div class="card" data-pl="${id}">
+        ${ids.length === 0 ?
+  `<div class="empty">${T("no_playlists_added", "No playlists yet. Click \"+ New playlist\" in the sidebar.")}</div>` :
+  `<div class="grid">${ids.map((id) => {
+    const p = State.playlists[id];
+    const cover = p.songs[0]?.thumbnail?.url || "";
+    return `<div class="card" data-pl="${id}">
                     <img loading="lazy" src="${cover}" alt=""/>
                     <div class="t">${escapeHtml(p.name)}</div>
                     <div class="a">${p.songs.length} ${T("songs", "tracks")}</div>
                 </div>`;
-      }).join("")}</div>`}`;
+  }).join("")}</div>`}`;
   $$(".card[data-pl]").forEach((c) =>
-    c.addEventListener("click", () => navigate(`/playlist/${c.dataset.pl}`)));
+  c.addEventListener("click", () => navigate(`/playlist/${c.dataset.pl}`)));
 }
 
 function renderLocalPlaylist(id) {
@@ -1034,7 +952,7 @@ function renderLocalPlaylist(id) {
     name: p.name,
     subtitle: `${p.songs.length} ${T("songs", "tracks")}`,
     image: cover,
-    songs: p.songs,
+    songs: p.songs
   }) + `
         <div class="actions" style="margin: -10px 0 14px">
             <button class="btn-ghost" id="renamePlaylistBtn">${icon("edit")}<span>${T("edit_title", "Rename")}</span></button>
@@ -1043,16 +961,16 @@ function renderLocalPlaylist(id) {
         <div class="list" id="songList"></div>`;
   const list = $("#songList");
   p.songs.forEach((s, i) =>
-    list.appendChild(songRow(s, i, p.songs, {
-      playlistId: id,
-      draggable: true,
-      onReorder: (from, to) => {
-        const [moved] = p.songs.splice(from, 1);
-        p.songs.splice(to, 0, moved);
-        persistPlaylists();
-        renderLocalPlaylist(id);
-      },
-    }))
+  list.appendChild(songRow(s, i, p.songs, {
+    playlistId: id,
+    draggable: true,
+    onReorder: (from, to) => {
+      const [moved] = p.songs.splice(from, 1);
+      p.songs.splice(to, 0, moved);
+      persistPlaylists();
+      renderLocalPlaylist(id);
+    }
+  }))
   );
   wireHero(p.songs);
   $("#renamePlaylistBtn").addEventListener("click", () => promptRenamePlaylist(id));
@@ -1066,9 +984,6 @@ function renderLocalPlaylist(id) {
   });
 }
 
-// =====================================================================
-// 12. Downloads page
-// =====================================================================
 async function renderDownloads() {
   view.innerHTML = `<h1 class="section-title">${T("downloaded", "Downloads")}</h1>
         <div id="dlList"></div>`;
@@ -1083,14 +998,14 @@ async function renderDownloads() {
     }
     wrap.innerHTML = list.map((rec) => {
       const s = rec.song || { name: rec.videoId, artists: [] };
-      const pct = rec.total ? Math.min(100, (rec.received / rec.total) * 100) : 0;
-      const status = rec.status === "complete"
-        ? `${icon("check", "ic-sm")} ${T("downloaded", "Ready")} · ${fmtBytes(rec.received)}`
-        : rec.status === "downloading"
-          ? `${icon("spinner", "ic-sm")} ${T("downloading", "Downloading")} · ${fmtBytes(rec.received)} / ${rec.total ? fmtBytes(rec.total) : "?"}`
-          : rec.status === "paused"
-            ? `${T("preparing", "Paused")} · ${fmtBytes(rec.received)}`
-            : `${icon("close", "ic-sm")} ${T("error", "Error")} · ${escapeHtml(rec.error || "")}`;
+      const pct = rec.total ? Math.min(100, rec.received / rec.total * 100) : 0;
+      const status = rec.status === "complete" ?
+      `${icon("check", "ic-sm")} ${T("downloaded", "Ready")} · ${fmtBytes(rec.received)}` :
+      rec.status === "downloading" ?
+      `${icon("spinner", "ic-sm")} ${T("downloading", "Downloading")} · ${fmtBytes(rec.received)} / ${rec.total ? fmtBytes(rec.total) : "?"}` :
+      rec.status === "paused" ?
+      `${T("preparing", "Paused")} · ${fmtBytes(rec.received)}` :
+      `${icon("close", "ic-sm")} ${T("error", "Error")} · ${escapeHtml(rec.error || "")}`;
       return `<div class="dl-row" data-vid="${rec.videoId}">
                 <img loading="lazy" src="${s.thumbnail?.url || ""}" alt=""/>
                 <div>
@@ -1104,9 +1019,9 @@ async function renderDownloads() {
                 <div class="dl-actions">
                     <button class="icon-btn" data-act="play" title="${T("now_playing", "Play")}">${icon("play")}</button>
                     ${rec.status === "complete" ? "" :
-          rec.status === "downloading"
-            ? `<button class="icon-btn" data-act="pause" title="${T("pause", "Pause")}">${icon("pause")}</button>`
-            : `<button class="icon-btn" data-act="resume" title="${T("download", "Resume")}">${icon("download")}</button>`}
+      rec.status === "downloading" ?
+      `<button class="icon-btn" data-act="pause" title="${T("pause", "Pause")}">${icon("pause")}</button>` :
+      `<button class="icon-btn" data-act="resume" title="${T("download", "Resume")}">${icon("download")}</button>`}
                     <button class="icon-btn" data-act="remove" title="${T("delete_playlist", "Remove")}">${icon("trash")}</button>
                 </div>
             </div>`;
@@ -1134,12 +1049,11 @@ async function renderDownloads() {
   };
   await renderList();
   Offline.on(renderList);
-  // When the route changes, drop the listener.
-  const stop = () => { Offline.off(renderList); window.removeEventListener("hashchange", stop); };
+
+  const stop = () => {Offline.off(renderList);window.removeEventListener("hashchange", stop);};
   window.addEventListener("hashchange", stop);
 }
 
-// Sidebar badge for in-progress downloads
 async function refreshDlBadge() {
   if (!Offline.DB) return;
   const list = await Offline.list();
@@ -1153,40 +1067,34 @@ async function refreshDlBadge() {
 }
 Offline.on(refreshDlBadge);
 
-// =====================================================================
-// 13. Shortcuts page
-// =====================================================================
 function renderShortcuts() {
   view.innerHTML = `<h1 class="section-title">Keyboard Shortcuts</h1>
         <table class="shortcuts" style="border-collapse:collapse;font-size:14px">
             ${[
-      ["Space", "Play / Pause"],
-      ["←", "Previous track"],
-      ["→", "Next track"],
-      ["↑", "Volume up"],
-      ["↓", "Volume down"],
-      ["M", "Mute"],
-      ["L", "Like / Unlike"],
-      ["S", "Shuffle"],
-      ["R", "Cycle repeat"],
-      ["F", "Toggle fullscreen player"],
-      ["V", "Toggle video mode"],
-      ["D", "Download current track"],
-      ["Esc", "Close fullscreen / panels"],
-      ["?", "This page"],
-    ].map(([k, d]) =>
-      `<tr><td style="padding:6px 12px"><kbd>${k}</kbd></td>
+  ["Space", "Play / Pause"],
+  ["←", "Previous track"],
+  ["→", "Next track"],
+  ["↑", "Volume up"],
+  ["↓", "Volume down"],
+  ["M", "Mute"],
+  ["L", "Like / Unlike"],
+  ["S", "Shuffle"],
+  ["R", "Cycle repeat"],
+  ["F", "Toggle fullscreen player"],
+  ["V", "Toggle video mode"],
+  ["D", "Download current track"],
+  ["Esc", "Close fullscreen / panels"],
+  ["?", "This page"]].
+  map(([k, d]) =>
+  `<tr><td style="padding:6px 12px"><kbd>${k}</kbd></td>
                 <td style="padding:6px 12px">${d}</td></tr>`).join("")}
         </table>`;
 }
 
-// =====================================================================
-// 14. Settings page
-// =====================================================================
 function renderSettings() {
   const s = State.settings;
   const localesHtml = I18N.available.map((l) =>
-    `<option value="${l.code}" ${l.code === I18N.code ? "selected" : ""}>${escapeHtml(l.name)} (${l.code})</option>`
+  `<option value="${l.code}" ${l.code === I18N.code ? "selected" : ""}>${escapeHtml(l.name)} (${l.code})</option>`
   ).join("") || `<option value="en">English</option>`;
 
   view.innerHTML = `
@@ -1211,11 +1119,11 @@ function renderSettings() {
                         <div class="theme-swatch ${t === s.theme ? "active" : ""}"
                             data-theme="${t}"
                             style="background:${t === "cyan" ? "#00bcd4" :
-      t === "purple" ? "#b388ff" :
-        t === "rose" ? "#ff6f9c" :
-          t === "lime" ? "#a5d651" :
-            t === "amber" ? "#ffb74d" :
-              "linear-gradient(135deg,#f9d423,#ff4e50)"}"></div>
+  t === "purple" ? "#b388ff" :
+  t === "rose" ? "#ff6f9c" :
+  t === "lime" ? "#a5d651" :
+  t === "amber" ? "#ffb74d" :
+  "linear-gradient(135deg,#f9d423,#ff4e50)"}"></div>
                     `).join("")}
                 </div>
             </div>
@@ -1283,74 +1191,66 @@ function renderSettings() {
             </div>
         </div>`;
 
-  // Wire lyrics source dropdown from server-listed providers.
   populateLyricsSourceSelect($("#setLyricsSrc"), s.lyricsSource);
 
   $$(".theme-swatch").forEach((el) =>
-    el.addEventListener("click", () => {
-      State.settings.theme = el.dataset.theme;
-      saveSettings(); applyTheme();
-      renderSettings();
-    }));
+  el.addEventListener("click", () => {
+    State.settings.theme = el.dataset.theme;
+    saveSettings();applyTheme();
+    renderSettings();
+  }));
   $("#setLocale").addEventListener("change", (e) => I18N.setLocale(e.target.value));
-  $("#setCrossfade").addEventListener("input", (e) => { State.settings.crossfade = +e.target.value; saveSettings(); });
+  $("#setCrossfade").addEventListener("input", (e) => {State.settings.crossfade = +e.target.value;saveSettings();});
   $("#setSleep").addEventListener("change", (e) => {
-    State.settings.sleepMin = +e.target.value; saveSettings();
+    State.settings.sleepMin = +e.target.value;saveSettings();
     scheduleSleepTimer();
   });
   $$("[data-eq]").forEach((el) =>
-    el.addEventListener("input", (e) => {
-      const i = +el.dataset.eq;
-      State.settings.eq[i] = +e.target.value;
-      saveSettings(); applyEqFromSettings();
-      el.parentElement.querySelector(".val").textContent = State.settings.eq[i].toFixed(1) + " dB";
-    }));
+  el.addEventListener("input", (e) => {
+    const i = +el.dataset.eq;
+    State.settings.eq[i] = +e.target.value;
+    saveSettings();applyEqFromSettings();
+    el.parentElement.querySelector(".val").textContent = State.settings.eq[i].toFixed(1) + " dB";
+  }));
   $("#setLyricsSrc").addEventListener("change", (e) => {
-    State.settings.lyricsSource = e.target.value; saveSettings();
+    State.settings.lyricsSource = e.target.value;saveSettings();
     if (lyricsSourceSelect) lyricsSourceSelect.value = e.target.value;
   });
   $("#setViz").addEventListener("change", (e) => {
-    State.settings.visualizer = e.target.value; saveSettings();
+    State.settings.visualizer = e.target.value;saveSettings();
   });
   $("#exportBtn").addEventListener("click", exportData);
   $("#importBtn").addEventListener("click", importData);
 }
 
-// Static fallback list of lyrics providers — used as the synchronous source
-// for both the dropdown and the empty-state quick-action buttons. Server's
-// /api/lyrics/sources may extend it later (e.g. to disable a backend), but
-// the UI is never blocked waiting on that fetch.
 const LYRICS_SOURCES = [
-  { id: "auto", label: "Auto (full chain)" },
-  { id: "lrclib", label: "LRCLIB" },
-  { id: "netease", label: "NetEase Cloud Music" },
-  { id: "genius", label: "Genius" },
-  { id: "kugou", label: "KuGou" },
-  { id: "youtube", label: "YouTube subtitles" },
-];
+{ id: "auto", label: "Auto (full chain)" },
+{ id: "lrclib", label: "LRCLIB" },
+{ id: "netease", label: "NetEase Cloud Music" },
+{ id: "genius", label: "Genius" },
+{ id: "kugou", label: "KuGou" },
+{ id: "youtube", label: "YouTube subtitles" }];
 
 function fillLyricsSourceSelect(el, current, providers = LYRICS_SOURCES) {
   if (!el) return;
   el.innerHTML = providers.map((p) =>
-    `<option value="${p.id}" ${p.id === current ? "selected" : ""}>${escapeHtml(p.label)}</option>`
+  `<option value="${p.id}" ${p.id === current ? "selected" : ""}>${escapeHtml(p.label)}</option>`
   ).join("");
 }
 
 async function populateLyricsSourceSelect(el, current) {
   if (!el) return;
-  // Render synchronously from the static list first so the dropdown is
-  // immediately usable.
+
   fillLyricsSourceSelect(el, current, LYRICS_SOURCES);
-  // Then refresh from the server in case it ships a different roster.
+
   try {
     const r = await api.lyricsSources();
     if (r?.providers) {
       const list = [r.auto, ...r.providers];
       fillLyricsSourceSelect(el, current, list);
     }
-  } catch { /* server unreachable — keep the static list */ }
+  } catch {}
 }
-
 
 function exportData() {
   const data = {
@@ -1358,7 +1258,7 @@ function exportData() {
     likedMeta: State.likedMeta,
     playlists: State.playlists,
     recents: State.recents,
-    settings: State.settings,
+    settings: State.settings
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -1368,9 +1268,9 @@ function exportData() {
 }
 function importData() {
   const input = document.createElement("input");
-  input.type = "file"; input.accept = "application/json";
+  input.type = "file";input.accept = "application/json";
   input.onchange = async () => {
-    const f = input.files[0]; if (!f) return;
+    const f = input.files[0];if (!f) return;
     try {
       const data = JSON.parse(await f.text());
       if (data.liked) State.liked = new Set(data.liked);
@@ -1378,12 +1278,12 @@ function importData() {
       if (data.playlists) State.playlists = data.playlists;
       if (data.recents) State.recents = data.recents;
       if (data.settings) State.settings = { ...State.settings, ...data.settings };
-      persistLiked(); persistPlaylists(); persistRecents(); saveSettings();
-      applyTheme(); applyEqFromSettings();
+      persistLiked();persistPlaylists();persistRecents();saveSettings();
+      applyTheme();applyEqFromSettings();
       renderSidebarPlaylists();
       showToast(T("restore_success", "Backup restored"));
       renderSettings();
-    } catch { showToast(T("restore_failed", "Invalid file")); }
+    } catch {showToast(T("restore_failed", "Invalid file"));}
   };
   input.click();
 }
@@ -1395,13 +1295,10 @@ function applyTheme() {
 function renderSidebarPlaylists() {
   const ids = Object.keys(State.playlists);
   sidebarPlaylists.innerHTML = ids.map((id) =>
-    `<a href="#/playlist/${id}">${escapeHtml(State.playlists[id].name)}</a>`
+  `<a href="#/playlist/${id}">${escapeHtml(State.playlists[id].name)}</a>`
   ).join("") || `<div class="empty" style="padding:8px 0;font-size:12px">${T("no_playlists_added", "No playlists")}</div>`;
 }
 
-// =====================================================================
-// 15. Modal / playlist prompts
-// =====================================================================
 function newPlaylist(name) {
   const id = "pl_" + Date.now().toString(36);
   State.playlists[id] = { name, songs: [] };
@@ -1420,7 +1317,7 @@ function promptNewPlaylist() {
       if (!name) return;
       const id = newPlaylist(name);
       navigate(`/playlist/${id}`);
-    },
+    }
   });
   setTimeout(() => $("#plName")?.focus(), 50);
 }
@@ -1433,9 +1330,9 @@ function promptRenamePlaylist(id) {
     onOk: () => {
       const name = $("#plName").value.trim();
       if (!name) return;
-      p.name = name; persistPlaylists();
-      renderSidebarPlaylists(); renderLocalPlaylist(id);
-    },
+      p.name = name;persistPlaylists();
+      renderSidebarPlaylists();renderLocalPlaylist(id);
+    }
   });
   setTimeout(() => $("#plName")?.focus(), 50);
 }
@@ -1451,39 +1348,35 @@ function openModal({ title, body, ok = "OK", cancel = T("cancel", "Cancel"), onO
         </div>`;
   modal.classList.remove("hidden");
   modalCard.querySelector('[data-act="cancel"]').onclick = closeModal;
-  modalCard.querySelector('[data-act="ok"]').onclick = () => { onOk?.(); closeModal(); };
+  modalCard.querySelector('[data-act="ok"]').onclick = () => {onOk?.();closeModal();};
 }
-function closeModal() { modal.classList.add("hidden"); }
-modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+function closeModal() {modal.classList.add("hidden");}
+modal.addEventListener("click", (e) => {if (e.target === modal) closeModal();});
 
-// =====================================================================
-// 16. Context menu
-// =====================================================================
 function openContextMenu(e, song, opts = {}) {
   closeContextMenu();
   const isLiked = State.liked.has(song.videoId);
   const items = [
-    { i: "play", label: T("now_playing", "Play now"), run: () => playQueue([song], 0) },
-    { i: "plus", label: T("queue", "Add to queue"), run: () => { State.queue.push(song); showToast(T("added_to_playlist", "Added to queue")); renderFpQueue(); } },
-    { i: "next", label: T("up_next", "Play next") || "Play next", run: () => { State.queue.splice(State.queueIndex + 1, 0, song); showToast(T("up_next", "Playing next")); renderFpQueue(); } },
+  { i: "play", label: T("now_playing", "Play now"), run: () => playQueue([song], 0) },
+  { i: "plus", label: T("queue", "Add to queue"), run: () => {State.queue.push(song);showToast(T("added_to_playlist", "Added to queue"));renderFpQueue();} },
+  { i: "next", label: T("up_next", "Play next") || "Play next", run: () => {State.queue.splice(State.queueIndex + 1, 0, song);showToast(T("up_next", "Playing next"));renderFpQueue();} },
+  { divider: true },
+  { i: isLiked ? "heart-fill" : "heart", label: isLiked ? T("liked", "Unlike") : T("like", "Like"), run: () => toggleLike(song) },
+  { i: "download", label: T("download", "Download"), run: () => Offline.download(song) },
+  {
+    i: "list",
+    label: T("add_to_a_playlist", "Add to playlist"),
+    submenu: Object.keys(State.playlists).map((id) => ({
+      label: State.playlists[id].name,
+      run: () => {
+        State.playlists[id].songs.push(song);persistPlaylists();
+        showToast(`${T("added_to_playlist", "Added to")} ${State.playlists[id].name}`);
+      }
+    })).concat([
     { divider: true },
-    { i: isLiked ? "heart-fill" : "heart", label: isLiked ? T("liked", "Unlike") : T("like", "Like"), run: () => toggleLike(song) },
-    { i: "download", label: T("download", "Download"), run: () => Offline.download(song) },
-    {
-      i: "list",
-      label: T("add_to_a_playlist", "Add to playlist"),
-      submenu: Object.keys(State.playlists).map((id) => ({
-        label: State.playlists[id].name,
-        run: () => {
-          State.playlists[id].songs.push(song); persistPlaylists();
-          showToast(`${T("added_to_playlist", "Added to")} ${State.playlists[id].name}`);
-        },
-      })).concat([
-        { divider: true },
-        { i: "plus", label: T("playlist_name", "+ New playlist…"), run: () => promptNewPlaylist() },
-      ]),
-    },
-  ];
+    { i: "plus", label: T("playlist_name", "+ New playlist…"), run: () => promptNewPlaylist() }]
+    )
+  }];
 
   if (opts.playlistId) {
     items.push({ divider: true });
@@ -1493,7 +1386,7 @@ function openContextMenu(e, song, opts = {}) {
         p.songs = p.songs.filter((s) => s.videoId !== song.videoId);
         persistPlaylists();
         renderLocalPlaylist(opts.playlistId);
-      },
+      }
     });
   }
   items.push({ divider: true });
@@ -1539,8 +1432,8 @@ function openSubmenu(parent, submenu) {
   sub.className = "ctx-menu glass-strong";
   sub.style.position = "fixed";
   sub.innerHTML = submenu.map((it, i) =>
-    it.divider ? `<div class="ctx-divider"></div>` :
-      `<div class="ctx-item" data-i="${i}">${it.i ? icon(it.i, "ic-sm") : ""} ${escapeHtml(it.label)}</div>`
+  it.divider ? `<div class="ctx-divider"></div>` :
+  `<div class="ctx-item" data-i="${i}">${it.i ? icon(it.i, "ic-sm") : ""} ${escapeHtml(it.label)}</div>`
   ).join("");
   document.body.appendChild(sub);
   const r = parent.getBoundingClientRect();
@@ -1556,15 +1449,12 @@ function openSubmenu(parent, submenu) {
   });
   document.addEventListener("click", () => sub.remove(), { once: true });
 }
-function closeContextMenu() { ctxMenu.classList.add("hidden"); }
+function closeContextMenu() {ctxMenu.classList.add("hidden");}
 document.addEventListener("click", (e) => {
   if (!ctxMenu.contains(e.target)) closeContextMenu();
 });
 document.addEventListener("scroll", closeContextMenu, true);
 
-// =====================================================================
-// 17. Drag-to-reorder
-// =====================================================================
 function wireDrag(div, queue, opts) {
   div.addEventListener("dragstart", (e) => {
     div.classList.add("dragging");
@@ -1590,9 +1480,6 @@ function wireDrag(div, queue, opts) {
   });
 }
 
-// =====================================================================
-// 18. Lyrics
-// =====================================================================
 async function loadLyricsForCurrent() {
   const cur = State.queue[State.queueIndex];
   if (!cur) {
@@ -1608,7 +1495,7 @@ async function loadLyricsForCurrent() {
       album: cur.album?.name || "",
       duration: cur.duration || "",
       videoId: cur.videoId,
-      source: sourcePref,
+      source: sourcePref
     });
     State.lyrics = parseLyrics(data);
     renderLyricLines();
@@ -1618,15 +1505,13 @@ async function loadLyricsForCurrent() {
   }
 }
 
-// Empty / error state with quick "try another source" buttons so the user
-// can recover without hunting through Settings.
 function renderLyricsEmpty(reason) {
   const cur = State.queue[State.queueIndex];
-  const buttons = LYRICS_SOURCES
-    .filter((p) => p.id !== "auto" && p.id !== State.settings.lyricsSource)
-    .map((p) =>
-      `<button class="btn-ghost" data-try="${p.id}" type="button">${escapeHtml(p.label)}</button>`
-    ).join("");
+  const buttons = LYRICS_SOURCES.
+  filter((p) => p.id !== "auto" && p.id !== State.settings.lyricsSource).
+  map((p) =>
+  `<button class="btn-ghost" data-try="${p.id}" type="button">${escapeHtml(p.label)}</button>`
+  ).join("");
   return `<div class="empty">
         <div>${escapeHtml(reason)}</div>
         <div class="muted" style="margin-top:8px">${escapeHtml(cur?.name || "")}</div>
@@ -1635,12 +1520,12 @@ function renderLyricsEmpty(reason) {
 }
 function wireLyricsEmptyActions() {
   fpLyricsInner.querySelectorAll("[data-try]").forEach((b) =>
-    b.addEventListener("click", () => {
-      State.settings.lyricsSource = b.dataset.try;
-      saveSettings();
-      if (lyricsSourceSelect) lyricsSourceSelect.value = b.dataset.try;
-      loadLyricsForCurrent();
-    })
+  b.addEventListener("click", () => {
+    State.settings.lyricsSource = b.dataset.try;
+    saveSettings();
+    if (lyricsSourceSelect) lyricsSourceSelect.value = b.dataset.try;
+    loadLyricsForCurrent();
+  })
   );
 }
 
@@ -1660,7 +1545,7 @@ function parseLyrics(data) {
   return {
     synced: false,
     lines: (data.plain || "").split(/\r?\n/).map((text) => ({ t: -1, text })),
-    source: data.source,
+    source: data.source
   };
 }
 function renderLyricLines() {
@@ -1669,10 +1554,10 @@ function renderLyricLines() {
     return;
   }
   fpLyricsInner.innerHTML =
-    `<div class="muted" style="font-size:11px">${T("share_url", "Source")}: ${escapeHtml(State.lyrics.source || "")}</div>` +
-    State.lyrics.lines.map((l, i) =>
-      `<div class="lyric-line" data-i="${i}">${escapeHtml(l.text) || "&nbsp;"}</div>`
-    ).join("");
+  `<div class="muted" style="font-size:11px">${T("share_url", "Source")}: ${escapeHtml(State.lyrics.source || "")}</div>` +
+  State.lyrics.lines.map((l, i) =>
+  `<div class="lyric-line" data-i="${i}">${escapeHtml(l.text) || "&nbsp;"}</div>`
+  ).join("");
 }
 function tickLyrics() {
   if (fpLyricsPanel.classList.contains("hidden") || !State.lyrics?.synced) return;
@@ -1680,7 +1565,7 @@ function tickLyrics() {
   let activeIdx = -1;
   const lines = State.lyrics.lines;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].t <= t) activeIdx = i; else break;
+    if (lines[i].t <= t) activeIdx = i;else break;
   }
   let activeEl = null;
   fpLyricsInner.querySelectorAll(".lyric-line").forEach((el, i) => {
@@ -1694,12 +1579,11 @@ function tickLyrics() {
     tickLyrics._lastActive = activeEl;
     const container = fpLyricsInner;
     const target =
-      activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+    activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
     container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
   }
 }
 
-// Hydrate lyrics dropdown in the fullscreen panel from server providers.
 populateLyricsSourceSelect(lyricsSourceSelect, State.settings.lyricsSource).then(() => {
   lyricsSourceSelect.addEventListener("change", (e) => {
     State.settings.lyricsSource = e.target.value;
@@ -1708,10 +1592,7 @@ populateLyricsSourceSelect(lyricsSourceSelect, State.settings.lyricsSource).then
   });
 });
 
-// =====================================================================
-// 19. Player core
-// =====================================================================
-function mediaEl() { return State.mode === "video" ? video : audio; }
+function mediaEl() {return State.mode === "video" ? video : audio;}
 
 async function playQueue(queue, startIndex, opts = {}) {
   State.queue = queue.slice();
@@ -1727,7 +1608,7 @@ async function playQueue(queue, startIndex, opts = {}) {
       const ids = new Set(State.queue.map((s) => s.videoId));
       for (const s of songs) if (!ids.has(s.videoId)) State.queue.push(s);
       renderFpQueue();
-    }).catch(() => { });
+    }).catch(() => {});
   }
 }
 
@@ -1738,14 +1619,12 @@ async function playCurrent() {
   const s = State.queue[State.queueIndex];
   if (!s) return;
 
-  // Prefetch next track (server warms yt-dlp cache) — but only if we're not
-  // already going to use an offline copy for it.
   const next = State.queue[State.queueIndex + 1];
   if (next?.videoId) {
     Offline.isReady(next.videoId).then((rec) => {
-      if (rec) return; // already on disk
+      if (rec) return;
       const path = State.mode === "video" ? "prefetch-video" : "prefetch";
-      fetch(`/api/${path}/${next.videoId}`, { method: "POST" }).catch(() => { });
+      fetch(`/api/${path}/${next.videoId}`, { method: "POST" }).catch(() => {});
     });
   }
 
@@ -1756,14 +1635,13 @@ async function playCurrent() {
   audio.pause();
   video.pause();
 
-  // Choose source: offline blob if available, else stream from server.
   let audioSrc = `/api/stream/${s.videoId}`;
   let videoSrc = `/api/video/${s.videoId}`;
   if (State.mode === "audio") {
     const blobUrl = await Offline.toBlobUrl(s.videoId);
     if (blobUrl) {
       audioSrc = blobUrl;
-      // Revoke the previous one (if we created any) to free memory.
+
       if (playCurrent._lastBlobUrl) URL.revokeObjectURL(playCurrent._lastBlobUrl);
       playCurrent._lastBlobUrl = blobUrl;
     } else if (playCurrent._lastBlobUrl) {
@@ -1788,8 +1666,6 @@ async function playCurrent() {
     fpStage.classList.remove("video-mode");
   }
 
-  // Reset every art surface synchronously *before* trying the new URL so we
-  // never linger on the previous track's image when a song has no thumbnail.
   npTitle.textContent = s.name;
   npArtist.textContent = artistsText(s.artists);
   npArt.removeAttribute("src");
@@ -1806,10 +1682,9 @@ async function playCurrent() {
     const c = await extractAccentFromImage(s.thumbnail.url);
     if (c) document.documentElement.style.setProperty("--art-color", c);
   } else {
-    // Reset to default theme accent so the halo isn't tinted by the previous song.
+
     document.documentElement.style.removeProperty("--art-color");
   }
-
 
   if (!fpLyricsPanel.classList.contains("hidden")) loadLyricsForCurrent();
 
@@ -1818,9 +1693,9 @@ async function playCurrent() {
       title: s.name,
       artist: artistsText(s.artists),
       album: s.album?.name || "",
-      artwork: s.thumbnail?.url
-        ? [{ src: s.thumbnail.url, sizes: "512x512", type: "image/jpeg" }]
-        : [],
+      artwork: s.thumbnail?.url ?
+      [{ src: s.thumbnail.url, sizes: "512x512", type: "image/jpeg" }] :
+      []
     });
     navigator.mediaSession.setActionHandler("play", () => mediaEl().play());
     navigator.mediaSession.setActionHandler("pause", () => mediaEl().pause());
@@ -1846,8 +1721,8 @@ function playNext(auto = false) {
   } else {
     next = State.queueIndex + 1;
     if (next >= State.queue.length) {
-      if (State.repeat === "all") next = 0;
-      else { mediaEl().pause(); return; }
+      if (State.repeat === "all") next = 0;else
+      {mediaEl().pause();return;}
     }
   }
   State.queueIndex = next;
@@ -1856,7 +1731,7 @@ function playNext(auto = false) {
 
 function playPrev() {
   if (!State.queue.length) return;
-  if (mediaEl().currentTime > 3) { mediaEl().currentTime = 0; return; }
+  if (mediaEl().currentTime > 3) {mediaEl().currentTime = 0;return;}
   State.queueIndex = Math.max(0, State.queueIndex - 1);
   playCurrent();
 }
@@ -1877,15 +1752,12 @@ function toggleLike(song) {
   if (cur?.videoId === song.videoId) {
     setBtnIcon(likeBtn, State.liked.has(song.videoId) ? "heart-fill" : "heart");
     fpLike.classList.toggle("active", State.liked.has(song.videoId));
-    // Update icon inside fpLike too.
+
     const useEl = fpLike.querySelector("use");
     if (useEl) useEl.setAttribute("href", State.liked.has(song.videoId) ? "#ic-heart-fill" : "#ic-heart");
   }
 }
 
-// =====================================================================
-// 20. Fullscreen player UI
-// =====================================================================
 function openFullPlayer() {
   fullPlayer.classList.remove("hidden");
   fullPlayer.setAttribute("aria-hidden", "false");
@@ -1933,53 +1805,50 @@ function renderFpQueue() {
   State.queue.forEach((s, i) => {
     const r = songRow(s, i, State.queue, {
       draggable: true,
-      onPlay: (idx) => { State.queueIndex = idx; playCurrent(); },
+      onPlay: (idx) => {State.queueIndex = idx;playCurrent();},
       onReorder: (from, to) => {
         const [moved] = State.queue.splice(from, 1);
         State.queue.splice(to, 0, moved);
-        if (State.queueIndex === from) State.queueIndex = to;
-        else if (from < State.queueIndex && to >= State.queueIndex) State.queueIndex--;
-        else if (from > State.queueIndex && to <= State.queueIndex) State.queueIndex++;
+        if (State.queueIndex === from) State.queueIndex = to;else
+        if (from < State.queueIndex && to >= State.queueIndex) State.queueIndex--;else
+        if (from > State.queueIndex && to <= State.queueIndex) State.queueIndex++;
         renderFpQueue();
-      },
+      }
     });
     fpQueueList.appendChild(r);
   });
 }
 
 clearQueueBtn.addEventListener("click", () => {
-  State.queue = []; State.queueIndex = -1;
-  audio.pause(); video.pause();
+  State.queue = [];State.queueIndex = -1;
+  audio.pause();video.pause();
   renderFpQueue();
   syncFullPlayerUi();
 });
 
-// =====================================================================
-// 21. Media element events + visualizer
-// =====================================================================
 function attachMediaEvents(el) {
   el.addEventListener("play", () => {
-    setBtnIcon(playBtn, "pause", "ic"); setBtnIcon(fpPlay, "pause", "ic");
-    vinyl.classList.add("playing"); tonearm.classList.add("playing");
+    setBtnIcon(playBtn, "pause", "ic");setBtnIcon(fpPlay, "pause", "ic");
+    vinyl.classList.add("playing");tonearm.classList.add("playing");
     if (State.settings.visualizer) startVisualizer();
   });
   el.addEventListener("pause", () => {
-    setBtnIcon(playBtn, "play", "ic"); setBtnIcon(fpPlay, "play", "ic");
-    vinyl.classList.remove("playing"); tonearm.classList.remove("playing");
+    setBtnIcon(playBtn, "play", "ic");setBtnIcon(fpPlay, "play", "ic");
+    vinyl.classList.remove("playing");tonearm.classList.remove("playing");
   });
   el.addEventListener("ended", () => playNext(true));
   el.addEventListener("timeupdate", () => {
     if (el !== mediaEl()) return;
     if (el.duration) {
       const pct = el.currentTime / el.duration * 1000;
-      seek.value = String(pct); fpSeek.value = String(pct);
+      seek.value = String(pct);fpSeek.value = String(pct);
 
       try {
         if (el.buffered.length) {
           const end = el.buffered.end(el.buffered.length - 1);
           bufferBar.style.width = `${end / el.duration * 100}%`;
         }
-      } catch { }
+      } catch {}
     }
     curTime.textContent = fmt(el.currentTime);
     durTime.textContent = fmt(el.duration);
@@ -2023,22 +1892,22 @@ function startVisualizer() {
   function draw() {
     vizFrame = requestAnimationFrame(draw);
     if (!analyser) return;
-    const w = visualizerCanvas.width, h = visualizerCanvas.height;
+    const w = visualizerCanvas.width,h = visualizerCanvas.height;
     ctx.clearRect(0, 0, w, h);
     const style = State.settings.visualizer;
     if (style === "wave") {
       analyser.getByteTimeDomainData(buf);
-      ctx.lineWidth = 2 * dpr; ctx.strokeStyle = accent;
+      ctx.lineWidth = 2 * dpr;ctx.strokeStyle = accent;
       ctx.beginPath();
       const step = w / buf.length;
       for (let i = 0; i < buf.length; i++) {
         const y = buf[i] / 128.0 * (h / 2);
-        if (i === 0) ctx.moveTo(0, y); else ctx.lineTo(i * step, y);
+        if (i === 0) ctx.moveTo(0, y);else ctx.lineTo(i * step, y);
       }
       ctx.stroke();
     } else if (style === "ring") {
       analyser.getByteFrequencyData(buf);
-      const cx = w / 2, cy = h / 2, r0 = Math.min(w, h) * 0.32;
+      const cx = w / 2,cy = h / 2,r0 = Math.min(w, h) * 0.32;
       for (let i = 0; i < buf.length; i += 2) {
         const a = i / buf.length * Math.PI * 2;
         const len = buf[i] / 255 * r0;
@@ -2046,8 +1915,8 @@ function startVisualizer() {
         const y1 = cy + Math.sin(a) * r0;
         const x2 = cx + Math.cos(a) * (r0 + len);
         const y2 = cy + Math.sin(a) * (r0 + len);
-        ctx.strokeStyle = accent; ctx.lineWidth = 2 * dpr;
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.strokeStyle = accent;ctx.lineWidth = 2 * dpr;
+        ctx.beginPath();ctx.moveTo(x1, y1);ctx.lineTo(x2, y2);ctx.stroke();
       }
     } else {
       analyser.getByteFrequencyData(buf);
@@ -2063,11 +1932,8 @@ function startVisualizer() {
   }
   draw();
 }
-function stopVisualizer() { if (vizFrame) cancelAnimationFrame(vizFrame); vizFrame = null; }
+function stopVisualizer() {if (vizFrame) cancelAnimationFrame(vizFrame);vizFrame = null;}
 
-// =====================================================================
-// 22. Wiring: seek, volume, transport, panels, language picker
-// =====================================================================
 const onSeekMain = (sliderEl) => () => {
   const m = mediaEl();
   if (m.duration) m.currentTime = sliderEl.value / 1000 * m.duration;
@@ -2077,15 +1943,15 @@ fpSeek.addEventListener("input", onSeekMain(fpSeek));
 
 vol.addEventListener("input", () => {
   const v = vol.value / 100;
-  audio.volume = v; video.volume = v;
+  audio.volume = v;video.volume = v;
   State.lastVolume = v;
   setBtnIcon(muteBtn, v === 0 ? "volume-mute" : "volume");
 });
-audio.volume = vol.value / 100; video.volume = vol.value / 100;
+audio.volume = vol.value / 100;video.volume = vol.value / 100;
 
 const togglePlay = () => {
   const m = mediaEl();
-  if (m.paused) m.play(); else m.pause();
+  if (m.paused) m.play();else m.pause();
 };
 playBtn.addEventListener("click", togglePlay);
 fpPlay.addEventListener("click", togglePlay);
@@ -2099,7 +1965,7 @@ function updateShuffleUi() {
   fpShuffle.classList.toggle("active", State.shuffle);
 }
 const toggleShuffle = () => {
-  State.shuffle = !State.shuffle; updateShuffleUi();
+  State.shuffle = !State.shuffle;updateShuffleUi();
   showToast(`${T("shuffle", "Shuffle")} ${State.shuffle ? "on" : "off"}`);
 };
 shuffleBtn.addEventListener("click", toggleShuffle);
@@ -2126,11 +1992,11 @@ muteBtn.addEventListener("click", () => {
   const v = audio.volume;
   if (v > 0) {
     State.lastVolume = v;
-    audio.volume = 0; video.volume = 0; vol.value = 0;
+    audio.volume = 0;video.volume = 0;vol.value = 0;
     setBtnIcon(muteBtn, "volume-mute");
   } else {
     const nv = State.lastVolume || 0.8;
-    audio.volume = nv; video.volume = nv;
+    audio.volume = nv;video.volume = nv;
     vol.value = nv * 100;
     setBtnIcon(muteBtn, "volume");
   }
@@ -2154,7 +2020,7 @@ const toggleVideoMode = () => {
   playCurrent().then(() => {
     const m = mediaEl();
     const setTime = () => {
-      try { m.currentTime = t; } catch { }
+      try {m.currentTime = t;} catch {}
       m.removeEventListener("loadedmetadata", setTime);
     };
     m.addEventListener("loadedmetadata", setTime);
@@ -2165,20 +2031,20 @@ fpVideoToggle.addEventListener("click", toggleVideoMode);
 
 fpDownload.addEventListener("click", () => {
   const cur = State.queue[State.queueIndex];
-  if (!cur) { showToast(T("hello_blank_fragment", "Play something first")); return; }
+  if (!cur) {showToast(T("hello_blank_fragment", "Play something first"));return;}
   Offline.download(cur);
 });
 
 function updatePanelLayout() {
   const open =
-    !fpLyricsPanel.classList.contains("hidden") ||
-    !fpQueuePanel.classList.contains("hidden");
+  !fpLyricsPanel.classList.contains("hidden") ||
+  !fpQueuePanel.classList.contains("hidden");
   fullPlayer.classList.toggle("has-panel", open);
 }
 
 fpLyricsToggle.addEventListener("click", () => {
   const wasHidden = fpLyricsPanel.classList.contains("hidden");
-  fpQueuePanel.classList.add("hidden"); fpQueueBtn.classList.remove("active");
+  fpQueuePanel.classList.add("hidden");fpQueueBtn.classList.remove("active");
   fpLyricsPanel.classList.toggle("hidden");
   fpLyricsToggle.classList.toggle("active", wasHidden);
   if (wasHidden) loadLyricsForCurrent();
@@ -2191,14 +2057,14 @@ fpLyricsClose.addEventListener("click", () => {
 });
 fpQueueBtn.addEventListener("click", () => {
   const wasHidden = fpQueuePanel.classList.contains("hidden");
-  fpLyricsPanel.classList.add("hidden"); fpLyricsToggle.classList.remove("active");
+  fpLyricsPanel.classList.add("hidden");fpLyricsToggle.classList.remove("active");
   fpQueuePanel.classList.toggle("hidden");
   fpQueueBtn.classList.toggle("active", wasHidden);
   if (wasHidden) renderFpQueue();
   updatePanelLayout();
 });
 fpQueueClose.addEventListener("click", () => {
-  fpQueuePanel.classList.add("hidden"); fpQueueBtn.classList.remove("active");
+  fpQueuePanel.classList.add("hidden");fpQueueBtn.classList.remove("active");
   updatePanelLayout();
 });
 
@@ -2206,13 +2072,12 @@ fpVizToggle.addEventListener("click", () => {
   const willShow = visualizerCanvas.classList.contains("hidden");
   visualizerCanvas.classList.toggle("hidden");
   fpVizToggle.classList.toggle("active", willShow);
-  if (willShow) startVisualizer(); else stopVisualizer();
+  if (willShow) startVisualizer();else stopVisualizer();
 });
 
-// Language picker (topbar)
 function renderLangMenu() {
   langMenu.innerHTML = I18N.available.map((l) =>
-    `<div class="lang-item ${l.code === I18N.code ? "active" : ""}" data-code="${l.code}">
+  `<div class="lang-item ${l.code === I18N.code ? "active" : ""}" data-code="${l.code}">
             <span>${escapeHtml(l.name)}</span>${icon("check", "ic-sm")}
         </div>`).join("") || `<div class="empty">No locales</div>`;
   $$(".lang-item", langMenu).forEach((el) => {
@@ -2234,19 +2099,18 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Search suggestions
 let suggestActive = -1;
 let suggestTimer = null;
 searchInput.addEventListener("input", () => {
   clearTimeout(suggestTimer);
   const q = searchInput.value.trim();
-  if (!q) { suggestList.classList.add("hidden"); return; }
+  if (!q) {suggestList.classList.add("hidden");return;}
   suggestTimer = setTimeout(async () => {
     try {
       const { suggestions } = await api.suggest(q);
-      if (!suggestions.length) { suggestList.classList.add("hidden"); return; }
+      if (!suggestions.length) {suggestList.classList.add("hidden");return;}
       suggestList.innerHTML = suggestions.slice(0, 8).map((s, i) =>
-        `<div class="suggest-item" data-i="${i}" data-q="${escapeHtml(s)}">${icon("search", "ic-sm")} ${escapeHtml(s)}</div>`
+      `<div class="suggest-item" data-i="${i}" data-q="${escapeHtml(s)}">${icon("search", "ic-sm")} ${escapeHtml(s)}</div>`
       ).join("");
       suggestList.classList.remove("hidden");
       suggestActive = -1;
@@ -2257,16 +2121,16 @@ searchInput.addEventListener("input", () => {
           navigate(`/search/${encodeURIComponent(el.dataset.q)}`);
         });
       });
-    } catch { }
+    } catch {}
   }, 200);
 });
 searchInput.addEventListener("keydown", (e) => {
   const items = suggestList.querySelectorAll(".suggest-item");
   if (e.key === "ArrowDown" && items.length) {
-    e.preventDefault(); suggestActive = (suggestActive + 1) % items.length;
+    e.preventDefault();suggestActive = (suggestActive + 1) % items.length;
     items.forEach((el, i) => el.classList.toggle("active", i === suggestActive));
   } else if (e.key === "ArrowUp" && items.length) {
-    e.preventDefault(); suggestActive = (suggestActive - 1 + items.length) % items.length;
+    e.preventDefault();suggestActive = (suggestActive - 1 + items.length) % items.length;
     items.forEach((el, i) => el.classList.toggle("active", i === suggestActive));
   } else if (e.key === "Escape") {
     suggestList.classList.add("hidden");
@@ -2284,9 +2148,6 @@ searchForm.addEventListener("submit", (e) => {
   navigate(`/search/${encodeURIComponent(q)}`);
 });
 
-// =====================================================================
-// 23. Sleep timer + global keyboard shortcuts
-// =====================================================================
 function scheduleSleepTimer() {
   if (State.sleepTimerId) clearTimeout(State.sleepTimerId);
   State.sleepTimerId = null;
@@ -2300,52 +2161,49 @@ function scheduleSleepTimer() {
 
 window.addEventListener("keydown", (e) => {
   if (e.target instanceof HTMLInputElement ||
-    e.target instanceof HTMLTextAreaElement ||
-    e.target instanceof HTMLSelectElement) return;
+  e.target instanceof HTMLTextAreaElement ||
+  e.target instanceof HTMLSelectElement) return;
   switch (e.key) {
-    case " ": e.preventDefault(); togglePlay(); break;
-    case "ArrowRight": playNext(false); break;
-    case "ArrowLeft": playPrev(); break;
-    case "ArrowUp": {
-      e.preventDefault();
-      const v = Math.min(100, +vol.value + 5);
-      vol.value = String(v); vol.dispatchEvent(new Event("input"));
-      showToast(`Volume ${v}%`); break;
-    }
-    case "ArrowDown": {
-      e.preventDefault();
-      const v = Math.max(0, +vol.value - 5);
-      vol.value = String(v); vol.dispatchEvent(new Event("input"));
-      showToast(`Volume ${v}%`); break;
-    }
-    case "m": case "M": muteBtn.click(); break;
-    case "l": case "L": likeCurrent(); break;
-    case "s": case "S": toggleShuffle(); break;
-    case "r": case "R": cycleRepeat(); break;
-    case "f": case "F": toggleFullPlayer(); break;
-    case "v": case "V": toggleVideoMode(); break;
-    case "d": case "D": {
-      const cur = State.queue[State.queueIndex];
-      if (cur) Offline.download(cur);
-      break;
-    }
+    case " ":e.preventDefault();togglePlay();break;
+    case "ArrowRight":playNext(false);break;
+    case "ArrowLeft":playPrev();break;
+    case "ArrowUp":{
+        e.preventDefault();
+        const v = Math.min(100, +vol.value + 5);
+        vol.value = String(v);vol.dispatchEvent(new Event("input"));
+        showToast(`Volume ${v}%`);break;
+      }
+    case "ArrowDown":{
+        e.preventDefault();
+        const v = Math.max(0, +vol.value - 5);
+        vol.value = String(v);vol.dispatchEvent(new Event("input"));
+        showToast(`Volume ${v}%`);break;
+      }
+    case "m":case "M":muteBtn.click();break;
+    case "l":case "L":likeCurrent();break;
+    case "s":case "S":toggleShuffle();break;
+    case "r":case "R":cycleRepeat();break;
+    case "f":case "F":toggleFullPlayer();break;
+    case "v":case "V":toggleVideoMode();break;
+    case "d":case "D":{
+        const cur = State.queue[State.queueIndex];
+        if (cur) Offline.download(cur);
+        break;
+      }
     case "Escape":
-      if (!ctxMenu.classList.contains("hidden")) closeContextMenu();
-      else if (!modal.classList.contains("hidden")) closeModal();
-      else if (!fullPlayer.classList.contains("hidden")) closeFullPlayer();
+      if (!ctxMenu.classList.contains("hidden")) closeContextMenu();else
+      if (!modal.classList.contains("hidden")) closeModal();else
+      if (!fullPlayer.classList.contains("hidden")) closeFullPlayer();
       break;
-    case "?": navigate("/shortcuts"); break;
+    case "?":navigate("/shortcuts");break;
   }
 });
 
-// =====================================================================
-// 24. Service Worker registration + connectivity badge
-// =====================================================================
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-    // Listen for updates so we can prompt the user without a hard reload.
+
     reg.addEventListener("updatefound", () => {
       const sw = reg.installing;
       if (!sw) return;
@@ -2360,7 +2218,6 @@ async function registerServiceWorker() {
   }
 }
 
-// Show a small "Offline" badge in the topbar when the network drops.
 function setupConnectivityBadge() {
   let badge = $("#connBadge");
   if (!badge) {
@@ -2378,25 +2235,19 @@ function setupConnectivityBadge() {
   sync();
 }
 
-// =====================================================================
-// 25. Boot
-// =====================================================================
 (async function boot() {
   applyTheme();
   renderSidebarPlaylists();
 
-  // Initial icon states
   setBtnIcon(playBtn, "play");
   setBtnIcon(fpPlay, "play");
   setBtnIcon(muteBtn, "volume");
 
-  // i18n
   await I18N.loadIndex();
   const initial = I18N.pickInitialLocale();
   await I18N.load(initial);
   I18N.apply();
 
-  // Offline DB + Service Worker (so the SPA works without network).
   await Offline.init();
   refreshDlBadge();
   registerServiceWorker();
@@ -2404,5 +2255,3 @@ function setupConnectivityBadge() {
 
   router(true);
 })();
-
-

@@ -1,19 +1,5 @@
-/* =============================================================================
-   SakayoriMusic — Web · Liquid Glass UI
-   ─────────────────────────────────────────────────────────────────────────────
-   Design language:
-     • All chrome (sidebar, topbar, mini-player, panels, menus, toasts) sits
-       on translucent layers with `backdrop-filter: blur(...)` + saturate.
-     • Hairline borders (rgba white 8–14%) and an inset specular bevel
-       give the "Liquid Glass" depth.
-     • Soft, layered drop shadows.
-     • Theme accent feeds buttons, sliders, focus rings, and album-art halo.
-     • Zero emoji, every icon is an inline-SVG `<use href="#ic-*">` so colors
-       and weights inherit from `currentColor`.
-   ========================================================================== */
-
 :root {
-    /* Liquid Glass tokens */
+
     --glass-bg-1: rgba(18, 22, 28, 0.55);
     --glass-bg-2: rgba(255, 255, 255, 0.06);
     --glass-bg-strong: rgba(22, 28, 36, 0.78);
@@ -120,9 +106,6 @@ button {
     color: var(--text);
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   Liquid Glass primitives
-   ────────────────────────────────────────────────────────────────────────── */
 .glass {
     background: var(--glass-bg-1);
     -webkit-backdrop-filter: var(--blur);
@@ -147,9 +130,6 @@ button {
     }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   App shell
-   ────────────────────────────────────────────────────────────────────────── */
 #app {
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -165,11 +145,6 @@ button {
         var(--bg);
 }
 
-/* SVG icons ------------------------------------------------------------- */
-/* Hard safety nets so an SVG without an explicit width/height can never
-   blow out the layout (the SVG default is 300x150). The `!important` is
-   intentional — we'd rather override site-specific overrides than ever
-   show a half-screen-tall <svg> placeholder. */
 svg {
     max-width: 100%;
     max-height: 100%;
@@ -209,8 +184,6 @@ svg {
     flex: none;
 }
 
-/* Buttons that contain an icon should clip overflow as a last-resort
-   guard, and keep their target size sane. */
 .icon-btn,
 .fp-icon,
 .btn-pill,
@@ -225,8 +198,6 @@ svg {
     overflow: hidden;
 }
 
-
-/* Sidebar --------------------------------------------------------------- */
 .sidebar {
     grid-area: side;
     margin: 12px 0 0 12px;
@@ -395,7 +366,6 @@ svg {
     color: var(--text);
 }
 
-/* Main area + topbar ---------------------------------------------------- */
 .main {
     grid-area: main;
     display: flex;
@@ -514,7 +484,6 @@ svg {
     color: var(--text);
 }
 
-/* Language picker ------------------------------------------------------- */
 .lang-menu {
     position: absolute;
     top: calc(100% + 6px);
@@ -558,7 +527,6 @@ svg {
     opacity: 1;
 }
 
-/* View ------------------------------------------------------------------ */
 .view {
     flex: 1;
     overflow-y: auto;
@@ -577,7 +545,6 @@ svg {
     font-size: 12px;
 }
 
-/* Generic icon button --------------------------------------------------- */
 .icon-btn {
     background: transparent;
     border: 1px solid transparent;
@@ -626,7 +593,6 @@ svg {
     transform: translateY(-1px);
 }
 
-/* Buttons --------------------------------------------------------------- */
 .btn-pill {
     display: inline-flex;
     align-items: center;
@@ -680,7 +646,6 @@ svg {
     border: 1px solid var(--glass-border);
 }
 
-/* Shelves & cards ------------------------------------------------------- */
 .shelf {
     margin: 24px 0;
 }
@@ -801,7 +766,6 @@ svg {
     height: 16px;
 }
 
-/* List rows ------------------------------------------------------------- */
 .list {
     display: flex;
     flex-direction: column;
@@ -908,7 +872,6 @@ svg {
     }
 }
 
-/* Hero ------------------------------------------------------------------ */
 .hero {
     position: relative;
     display: grid;
@@ -987,7 +950,6 @@ svg {
     flex-wrap: wrap;
 }
 
-/* Mini player ----------------------------------------------------------- */
 .player {
     grid-area: player;
     margin: 8px 12px 12px;
@@ -1096,7 +1058,6 @@ svg {
     font-variant-numeric: tabular-nums;
 }
 
-/* Range sliders --------------------------------------------------------- */
 input[type=range] {
     -webkit-appearance: none;
     appearance: none;
@@ -1149,7 +1110,6 @@ input[type=range]::-moz-range-thumb {
     cursor: pointer;
 }
 
-/* Inputs / selects ------------------------------------------------------ */
 input[type=text],
 input[type=search],
 input[type=number] {
@@ -1191,7 +1151,6 @@ label {
     margin-bottom: 4px;
 }
 
-/* Skeletons ------------------------------------------------------------- */
 .skeleton {
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.05));
     background-size: 200% 100%;
@@ -1215,7 +1174,6 @@ label {
     border-radius: 10px;
 }
 
-/* Empty / error --------------------------------------------------------- */
 .empty {
     border: 1px dashed var(--glass-border);
     border-radius: 14px;
@@ -1225,7 +1183,6 @@ label {
     background: rgba(255, 255, 255, 0.02);
 }
 
-/* Settings page --------------------------------------------------------- */
 .settings {
     max-width: 760px;
 }
@@ -1294,7 +1251,6 @@ label {
     text-align: right;
 }
 
-/* Fullscreen player ---------------------------------------------------- */
 .full-player {
     position: fixed;
     inset: 0;
@@ -1531,19 +1487,13 @@ label {
     }
 }
 
-/* ---------------------------------------------------------------------
-   Tonearm — anchored to the top-right of the vinyl-wrap. We rotate the
-   *whole* assembly around the pivot (top-right corner) so the stick
-   sweeps inward toward the disc when "playing". The stick is now drawn
-   inside the rotating container and points down-left toward the centre.
-   --------------------------------------------------------------------- */
 .tonearm {
     position: absolute;
     top: -8%;
     right: -8%;
     width: 60%;
     height: 60%;
-    /* Pivot is anchored at the top-right (where the visible pivot dot sits). */
+
     transform-origin: 100% 0%;
     transform: rotate(-32deg);
     transition: transform 0.6s ease;
@@ -1572,18 +1522,17 @@ label {
 
 .tonearm-stick {
     position: absolute;
-    /* Start at the centre of the pivot dot. */
+
     top: 11px;
     right: 11px;
     width: 75%;
     height: 5px;
     background: linear-gradient(90deg, #3a4148, #20262b);
     border-radius: 3px;
-    /* Anchor the stick at the right end (the pivot side) so length grows
-       toward the disc and rotation pivots from the pivot, not the head. */
+
     transform-origin: 100% 50%;
     transform: rotate(180deg);
-    /* point left */
+
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.10),
         0 2px 4px rgba(0, 0, 0, 0.4);
@@ -1591,8 +1540,7 @@ label {
 
 .tonearm-head {
     position: absolute;
-    /* The head sits at the LEFT (far) tip of the stick — so we anchor it
-       relative to the stick's `transform-origin` translated by its width. */
+
     left: -8px;
     top: -3px;
     width: 22px;
@@ -1602,9 +1550,6 @@ label {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* -------------------------------------------------------------------
-   Offline / connectivity badge in the topbar
-   ------------------------------------------------------------------- */
 .conn-badge {
     display: inline-flex;
     align-items: center;
@@ -1623,7 +1568,6 @@ label {
 .conn-badge .ic-sm {
     color: var(--danger);
 }
-
 
 .fp-video {
     width: 100%;
@@ -1741,8 +1685,6 @@ label {
     font-size: 15px;
 }
 
-/* The lyrics source picker — make it actually usable: visible width,
-   match the glassy chrome of the rest of the UI, taller hit-target. */
 .fp-panel-header select {
     min-width: 180px;
     padding: 6px 10px;
@@ -1756,7 +1698,6 @@ label {
     backdrop-filter: blur(10px);
 }
 
-/* Source attribution above lyrics */
 .lyrics-source {
     display: inline-flex;
     align-items: center;
@@ -1779,14 +1720,12 @@ label {
     margin-top: 12px;
 }
 
-
 .fp-panel-inner {
     flex: 1;
     overflow-y: auto;
     padding: 12px 14px;
 }
 
-/* Lyrics */
 .lyric-line {
     padding: 6px 4px;
     font-size: 15px;
@@ -1803,7 +1742,6 @@ label {
     transform: scale(1.02);
 }
 
-/* Context menu --------------------------------------------------------- */
 .ctx-menu {
     position: fixed;
     z-index: 200;
@@ -1841,7 +1779,6 @@ label {
     font-size: 11px;
 }
 
-/* Toast / modal -------------------------------------------------------- */
 .toast {
     position: fixed;
     bottom: 110px;
@@ -1887,7 +1824,6 @@ label {
     margin-top: 18px;
 }
 
-/* Downloads page ------------------------------------------------------- */
 .dl-row {
     display: grid;
     grid-template-columns: 48px 1fr 180px auto;
@@ -1983,7 +1919,6 @@ kbd {
     color: var(--text);
 }
 
-/* Mobile / narrow ------------------------------------------------------- */
 @media (max-width: 880px) {
     #app {
         grid-template-columns: 1fr;
