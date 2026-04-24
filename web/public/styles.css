@@ -1531,55 +1531,99 @@ label {
     }
 }
 
+/* ---------------------------------------------------------------------
+   Tonearm — anchored to the top-right of the vinyl-wrap. We rotate the
+   *whole* assembly around the pivot (top-right corner) so the stick
+   sweeps inward toward the disc when "playing". The stick is now drawn
+   inside the rotating container and points down-left toward the centre.
+   --------------------------------------------------------------------- */
 .tonearm {
     position: absolute;
-    right: -10%;
-    top: -2%;
-    width: 50%;
+    top: -8%;
+    right: -8%;
+    width: 60%;
     height: 60%;
-    transform-origin: 90% 10%;
-    transform: rotate(-30deg);
+    /* Pivot is anchored at the top-right (where the visible pivot dot sits). */
+    transform-origin: 100% 0%;
+    transform: rotate(-32deg);
     transition: transform 0.6s ease;
     pointer-events: none;
+    z-index: 3;
 }
 
 .tonearm.playing {
-    transform: rotate(-12deg);
+    transform: rotate(-14deg);
 }
 
 .tonearm-pivot {
     position: absolute;
-    right: 4%;
-    top: 4%;
-    width: 24px;
-    height: 24px;
-    background: #2c3338;
-    border: 2px solid #161a1d;
+    top: 0;
+    right: 0;
+    width: 22px;
+    height: 22px;
+    background: radial-gradient(circle at 30% 30%, #4a525a, #1c2024 70%, #0a0c0e);
+    border: 2px solid #0a0c0e;
     border-radius: 50%;
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+    z-index: 2;
 }
 
 .tonearm-stick {
     position: absolute;
-    right: 14px;
-    top: 16px;
-    width: 70%;
-    height: 6px;
-    background: linear-gradient(90deg, #3a4148, #1d2226);
+    /* Start at the centre of the pivot dot. */
+    top: 11px;
+    right: 11px;
+    width: 75%;
+    height: 5px;
+    background: linear-gradient(90deg, #3a4148, #20262b);
     border-radius: 3px;
-    transform-origin: right center;
-    transform: rotate(40deg);
+    /* Anchor the stick at the right end (the pivot side) so length grows
+       toward the disc and rotation pivots from the pivot, not the head. */
+    transform-origin: 100% 50%;
+    transform: rotate(180deg);
+    /* point left */
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.10),
+        0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .tonearm-head {
     position: absolute;
-    left: -6px;
-    bottom: -8px;
+    /* The head sits at the LEFT (far) tip of the stick — so we anchor it
+       relative to the stick's `transform-origin` translated by its width. */
+    left: -8px;
+    top: -3px;
     width: 22px;
-    height: 14px;
-    background: #1d2226;
+    height: 11px;
+    background: linear-gradient(180deg, #2a3036, #0e1114);
     border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
+
+/* -------------------------------------------------------------------
+   Offline / connectivity badge in the topbar
+   ------------------------------------------------------------------- */
+.conn-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text);
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    margin-inline-start: 6px;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.conn-badge .ic-sm {
+    color: var(--danger);
+}
+
 
 .fp-video {
     width: 100%;

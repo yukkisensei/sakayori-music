@@ -1788,15 +1788,28 @@ async function playCurrent() {
     fpStage.classList.remove("video-mode");
   }
 
+  // Reset every art surface synchronously *before* trying the new URL so we
+  // never linger on the previous track's image when a song has no thumbnail.
   npTitle.textContent = s.name;
   npArtist.textContent = artistsText(s.artists);
-  if (s.thumbnail?.url) npArt.src = s.thumbnail.url; else npArt.removeAttribute("src");
+  npArt.removeAttribute("src");
+  vinylArt.removeAttribute("src");
+  fpBackdrop.style.backgroundImage = "none";
+  if (s.thumbnail?.url) {
+    npArt.src = s.thumbnail.url;
+    vinylArt.src = s.thumbnail.url;
+    fpBackdrop.style.backgroundImage = `url("${s.thumbnail.url}")`;
+  }
   setBtnIcon(likeBtn, State.liked.has(s.videoId) ? "heart-fill" : "heart");
   syncFullPlayerUi();
   if (s.thumbnail?.url) {
     const c = await extractAccentFromImage(s.thumbnail.url);
     if (c) document.documentElement.style.setProperty("--art-color", c);
+  } else {
+    // Reset to default theme accent so the halo isn't tinted by the previous song.
+    document.documentElement.style.removeProperty("--art-color");
   }
+
 
   if (!fpLyricsPanel.classList.contains("hidden")) loadLyricsForCurrent();
 
@@ -2326,7 +2339,47 @@ window.addEventListener("keydown", (e) => {
 });
 
 // =====================================================================
-// 24. Boot
+// 24. Service Worker registration + connectivity badge
+// =====================================================================
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    // Listen for updates so we can prompt the user without a hard reload.
+    reg.addEventListener("updatefound", () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener("statechange", () => {
+        if (sw.state === "installed" && navigator.serviceWorker.controller) {
+          showToast(T("update_available", "New update available — reload to apply"));
+        }
+      });
+    });
+  } catch (e) {
+    console.warn("[sw] registration failed:", e.message);
+  }
+}
+
+// Show a small "Offline" badge in the topbar when the network drops.
+function setupConnectivityBadge() {
+  let badge = $("#connBadge");
+  if (!badge) {
+    badge = document.createElement("div");
+    badge.id = "connBadge";
+    badge.className = "conn-badge hidden";
+    badge.innerHTML = `${icon("wifi-off", "ic-sm")}<span data-i18n="unavailable">Offline</span>`;
+    $(".topbar")?.appendChild(badge);
+  }
+  const sync = () => {
+    badge.classList.toggle("hidden", navigator.onLine);
+  };
+  window.addEventListener("online", sync);
+  window.addEventListener("offline", sync);
+  sync();
+}
+
+// =====================================================================
+// 25. Boot
 // =====================================================================
 (async function boot() {
   applyTheme();
@@ -2343,9 +2396,13 @@ window.addEventListener("keydown", (e) => {
   await I18N.load(initial);
   I18N.apply();
 
-  // Offline DB
+  // Offline DB + Service Worker (so the SPA works without network).
   await Offline.init();
   refreshDlBadge();
+  registerServiceWorker();
+  setupConnectivityBadge();
 
   router(true);
 })();
+
+
