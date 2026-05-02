@@ -174,12 +174,12 @@ class DiscordIpcClient {
         val result = mutableListOf<Path>()
         for (d in dirs) {
             val base = Paths.get(d)
-            result += base
+            result.add(base)
             // Flatpak / Snap fallbacks (Linux only, harmless on macOS if absent)
-            result += base.resolve("app/com.discordapp.Discord")
-            result += base.resolve("app/com.discordapp.DiscordCanary")
-            result += base.resolve("snap.discord")
-            result += base.resolve("snap.discord-canary")
+            result.add(base.resolve("app/com.discordapp.Discord"))
+            result.add(base.resolve("app/com.discordapp.DiscordCanary"))
+            result.add(base.resolve("snap.discord"))
+            result.add(base.resolve("snap.discord-canary"))
         }
         return result
     }
