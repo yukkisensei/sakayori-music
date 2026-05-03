@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -180,7 +180,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -216,7 +216,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -274,7 +274,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -312,7 +312,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -400,13 +400,13 @@ jobs:
           mkdir -p build/Payload
           cp -R build/SakayoriMusic.xcarchive/Products/Applications/iosApp.app build/Payload/SakayoriMusic.app
           cd build
-          zip -qry SakayoriMusic-2.1.5-unsigned.ipa Payload
-          ls -la SakayoriMusic-2.1.5-unsigned.ipa
+          zip -qry SakayoriMusic-${VERSION:-2.1.6}-unsigned.ipa Payload
+          ls -la SakayoriMusic-${VERSION:-2.1.6}-unsigned.ipa
 
       - uses: actions/upload-artifact@v4
         with:
           name: SakayoriMusic-ios-ipa-unsigned
-          path: iosApp/build/SakayoriMusic-2.1.5-unsigned.ipa
+          path: iosApp/build/SakayoriMusic-*-unsigned.ipa
           if-no-files-found: error
 
       - name: Upload iOS debug logs on failure
