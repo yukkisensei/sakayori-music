@@ -9,8 +9,8 @@ concurrency:
 
 env:
   # Reduce parallelism and worker counts to save memory
-  GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=1 -Dkotlin.incremental=false -Xmx4G -XX:MaxMetaspaceSize=1G"
-  _JAVA_OPTIONS: "-Xmx4G -XX:MaxMetaspaceSize=1G"
+  GRADLE_OPTS: "-Dorg.gradle.parallel=false -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=1 -Dkotlin.incremental=false -Xmx6G -XX:MaxMetaspaceSize=1G"
+  _JAVA_OPTIONS: "-Xmx6G -XX:MaxMetaspaceSize=1G"
 
 jobs:
   ios-build:
